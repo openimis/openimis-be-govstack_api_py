@@ -47,7 +47,7 @@ def get_registry_data(request, registryname, versionnumber):
     }
 
     # Utworzenie odpowiedzi JSON i zwrócenie jej
-    return HttpResponse(json.dumps(response_data), content_type="application/json")
+    return HttpResponse(json.dumps(response_data), content_type="application/json; charset=utf-8")
     # return JsonResponse(response_data)
 
 
