@@ -33,41 +33,7 @@ def get_registry_data(request, registryname, versionnumber):
     paginator = Paginator(data, page_size)
     current_page = paginator.get_page(page)
 
-    # Construct the response
-    # response = {
-    #     "count": paginator.count,
-    #     "next": None if not current_page.has_next() else f"?page={current_page.next_page_number()}",
-    #     "previous": None if not current_page.has_previous() else f"?page={current_page.previous_page_number()}",
-    #     "results": list(current_page)
-    # }
-    #
-    # return JsonResponse({
-    #     "count": 1,
-    #     "next": "1",
-    #     "previous": "",
-    #     "results": [
-    #         {
-    #             "ID": "EE378627348834",
-    #             "FirstName": "John Helmut",
-    #             "LastName": "Smith Carry",
-    #             "BirthCertificateID": "RR-1234567889"
-    #         }
-    #     ]
-    # }, content_type='application/json')
-
-    # response_data = {
-    #     "answer": {
-    #         "status": True,
-    #         "message": "Object found from database"
-    #     }
-    # }
-    #
-    #
-    # # Convert response data to JSON
-    # response_json = json.dumps(response_data)
-    #
-    # # Return the response with the specified Content-Type header
-    # return HttpResponse(response_json, content_type='application/json')
+    print("Sample message")
 
     status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
     message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
@@ -82,3 +48,39 @@ def get_registry_data(request, registryname, versionnumber):
 
     # Utworzenie odpowiedzi JSON i zwrócenie jej
     return JsonResponse(response_data)
+
+
+@api_view(['GET', 'POST'])
+@csrf_exempt
+def get_registry_data2(request, registryname, versionnumber):
+    # Extract query parameters
+    search = request.GET.get('search')
+    filter = request.GET.get('filter')
+    ordering = request.GET.get('ordering')
+    page = request.GET.get('page', 1)
+    page_size = request.GET.get('page_size', 10)
+    query_fieldname = request.GET.get('query.<fieldname>')
+
+    # Logic to retrieve data from your database and filter/order as required
+    # For demonstration purposes, let's say you have created a list named 'data'
+    data = [...]  # replace this with your logic to fetch data from the database
+
+    # Apply pagination
+    paginator = Paginator(data, page_size)
+    current_page = paginator.get_page(page)
+
+    print("Sample message")
+
+    status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
+    message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
+
+    # Konstrukcja danych odpowiedzi zgodnie ze schematem
+    response_data = {
+        "answer": {
+            "status": status,
+            "message": message
+        }
+    }
+
+    # Utworzenie odpowiedzi JSON i zwrócenie jej
+    return Response({"status": True})
