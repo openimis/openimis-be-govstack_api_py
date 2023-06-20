@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
+from django.http import HttpResponse
+import json
 
 @api_view(['GET'])
 def getDataFromSubFolder(request):
@@ -32,23 +34,43 @@ def get_registry_data(request, registryname, versionnumber):
     current_page = paginator.get_page(page)
 
     # Construct the response
-    response = {
-        "count": paginator.count,
-        "next": None if not current_page.has_next() else f"?page={current_page.next_page_number()}",
-        "previous": None if not current_page.has_previous() else f"?page={current_page.previous_page_number()}",
-        "results": list(current_page)
-    }
+    # response = {
+    #     "count": paginator.count,
+    #     "next": None if not current_page.has_next() else f"?page={current_page.next_page_number()}",
+    #     "previous": None if not current_page.has_previous() else f"?page={current_page.previous_page_number()}",
+    #     "results": list(current_page)
+    # }
+    #
+    # return JsonResponse({
+    #     "count": 1,
+    #     "next": "1",
+    #     "previous": "",
+    #     "results": [
+    #         {
+    #             "ID": "EE378627348834",
+    #             "FirstName": "John Helmut",
+    #             "LastName": "Smith Carry",
+    #             "BirthCertificateID": "RR-1234567889"
+    #         }
+    #     ]
+    # }, content_type='application/json')
 
-    return JsonResponse({
-        "count": 1,
-        "next": "1",
-        "previous": "",
-        "results": [
-            {
-                "ID": "EE378627348834",
-                "FirstName": "John Helmut",
-                "LastName": "Smith Carry",
-                "BirthCertificateID": "RR-1234567889"
-            }
-        ]
-    }, content_type='application/json')
+    response_data = {
+            "count": 1,
+            "next": "1",
+            "previous": "",
+            "results": [
+                {
+                    "ID": "EE378627348834",
+                    "FirstName": "John Helmut",
+                    "LastName": "Smith Carry",
+                    "BirthCertificateID": "RR-1234567889"
+                }
+            ]
+        }
+
+    # Convert response data to JSON
+    response_json = json.dumps(response_data)
+
+    # Return the response with the specified Content-Type header
+    return HttpResponse(response_json, content_type='application/json')

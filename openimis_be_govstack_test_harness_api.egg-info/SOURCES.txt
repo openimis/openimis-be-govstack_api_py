@@ -7,6 +7,11 @@ govstack_test_harness_api/models.py
 govstack_test_harness_api/tests.py
 govstack_test_harness_api/urls.py
 govstack_test_harness_api/views.py
+govstack_test_harness_api/building_blocks/__init__.py
+govstack_test_harness_api/building_blocks/bb-digital-registries/__init__.py
+govstack_test_harness_api/building_blocks/bb-digital-registries/services.py
+govstack_test_harness_api/building_blocks/bb-digital-registries/urls.py
+govstack_test_harness_api/building_blocks/bb-digital-registries/views.py
 govstack_test_harness_api/migrations/__init__.py
 openimis_be_govstack_test_harness_api.egg-info/PKG-INFO
 openimis_be_govstack_test_harness_api.egg-info/SOURCES.txt
