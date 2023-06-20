@@ -56,18 +56,12 @@ def get_registry_data(request, registryname, versionnumber):
     # }, content_type='application/json')
 
     response_data = {
-            "count": 1,
-            "next": "1",
-            "previous": "",
-            "results": [
-                {
-                    "ID": "EE378627348834",
-                    "FirstName": "John Helmut",
-                    "LastName": "Smith Carry",
-                    "BirthCertificateID": "RR-1234567889"
-                }
-            ]
+        "answer": {
+            "status": True,
+            "message": "Object found from database"
         }
+    }
+
 
     # Convert response data to JSON
     response_json = json.dumps(response_data)
