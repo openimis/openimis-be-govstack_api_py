@@ -39,7 +39,7 @@ def get_registry_data(request, registryname, versionnumber):
         "results": list(current_page)
     }
 
-    return Response({
+    return JsonResponse({
         "count": 1,
         "next": "1",
         "previous": "",
@@ -51,4 +51,4 @@ def get_registry_data(request, registryname, versionnumber):
                 "BirthCertificateID": "RR-1234567889"
             }
         ]
-    })
+    }, content_type='application/json')
