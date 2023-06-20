@@ -35,7 +35,7 @@ def get_registry_data(request, registryname, versionnumber):
 
     print("Sample message")
 
-    status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
+    status = False  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
     message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
 
     # Konstrukcja danych odpowiedzi zgodnie ze schematem
@@ -47,7 +47,8 @@ def get_registry_data(request, registryname, versionnumber):
     }
 
     # Utworzenie odpowiedzi JSON i zwrócenie jej
-    return HttpResponse(json.dumps(response_data), content_type="application/json; charset=utf-8")
+    return HttpResponse(json.dumps(response_data), content_type="application/json")
+    # return HttpResponse(json.dumps(response_data), content_type="application/json; charset=utf-8")
     # return JsonResponse(response_data)
 
 
