@@ -55,16 +55,30 @@ def get_registry_data(request, registryname, versionnumber):
     #     ]
     # }, content_type='application/json')
 
+    # response_data = {
+    #     "answer": {
+    #         "status": True,
+    #         "message": "Object found from database"
+    #     }
+    # }
+    #
+    #
+    # # Convert response data to JSON
+    # response_json = json.dumps(response_data)
+    #
+    # # Return the response with the specified Content-Type header
+    # return HttpResponse(response_json, content_type='application/json')
+
+    status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
+    message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
+
+    # Konstrukcja danych odpowiedzi zgodnie ze schematem
     response_data = {
         "answer": {
-            "status": True,
-            "message": "Object found from database"
+            "status": status,
+            "message": message
         }
     }
 
-
-    # Convert response data to JSON
-    response_json = json.dumps(response_data)
-
-    # Return the response with the specified Content-Type header
-    return HttpResponse(response_json, content_type='application/json')
+    # Utworzenie odpowiedzi JSON i zwrócenie jej
+    return JsonResponse(response_data)
