@@ -8,7 +8,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
-    name='openimis-be-govstack_test_harness_api_py',
+    name='govstack_test_harness_api',
     version='1.0.0.rc1',
     packages=find_packages(),
     include_package_data=True,

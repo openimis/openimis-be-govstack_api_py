@@ -40,19 +40,15 @@ def get_registry_data(request, registryname, versionnumber):
     }
 
     return Response({
-        "count": 2,
-        "next": "http://api.example.com/data/registry-name/1/?page=3&page_size=2",
-        "previous": "http://api.example.com/data/registry-name/1/?page=1&page_size=2",
+        "count": 1,
+        "next": "1",
+        "previous": "",
         "results": [
             {
-                "id": 1,
-                "field1": "value1",
-                "field2": "value2"
-            },
-            {
-                "id": 2,
-                "field1": "value3",
-                "field2": "value4"
+                "ID": "EE378627348834",
+                "FirstName": "John Helmut",
+                "LastName": "Smith Carry",
+                "BirthCertificateID": "RR-1234567889"
             }
         ]
     })
