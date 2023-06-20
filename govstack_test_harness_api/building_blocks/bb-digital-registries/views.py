@@ -12,7 +12,7 @@ def getDataFromSubFolder(request):
     return Response(person)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @csrf_exempt
 def get_registry_data(request, registryname, versionnumber):
     # Extract query parameters
