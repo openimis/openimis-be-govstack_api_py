@@ -33,7 +33,6 @@ def get_registry_data(request, registryname, versionnumber):
     paginator = Paginator(data, page_size)
     current_page = paginator.get_page(page)
 
-
     status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
     message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
 
