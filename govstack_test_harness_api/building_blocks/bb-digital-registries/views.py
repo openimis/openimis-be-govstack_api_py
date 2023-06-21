@@ -35,7 +35,7 @@ def get_registry_data(request, registryname, versionnumber):
 
     print("Sample message")
 
-    status = False  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
+    status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
     message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
 
     # Konstrukcja danych odpowiedzi zgodnie ze schematem
