@@ -33,7 +33,6 @@ def get_registry_data(request, registryname, versionnumber):
     paginator = Paginator(data, page_size)
     current_page = paginator.get_page(page)
 
-    print("Sample message")
 
     status = True  # Przykład, ustaw status na True lub False w zależności od twojej logiki.
     message = "Object found from database" # Przykład, ustaw odpowiednią wiadomość.
@@ -41,14 +40,17 @@ def get_registry_data(request, registryname, versionnumber):
     # Konstrukcja danych odpowiedzi zgodnie ze schematem
     response_data = {
         "answer": {
-            "status": status,
+            "status": False,
             "message": message
         }
     }
 
     # Utworzenie odpowiedzi JSON i zwrócenie jej
     # return HttpResponse(json.dumps(response_data), content_type="application/json")
-    return HttpResponse(json.dumps(response_data), content_type="application/json; charset=utf-8")
+    # return HttpResponse(json.dumps(response_data), content_type="application/json; charset=utf-8")
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
     # return JsonResponse(response_data)
 
 
