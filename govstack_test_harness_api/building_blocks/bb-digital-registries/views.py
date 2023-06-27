@@ -6,8 +6,11 @@ from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
 from django.http import HttpResponse
 import json
-
+from graphene import Schema
+from insuree.schema import Query, Mutation
 from insuree.models import Insuree
+from contribution_plan.tests.gql_tests.query_tests import *
+from graphene import Schema
 from .swaggers_schema import (
     create_request_body,
     create_response_body,
@@ -16,9 +19,9 @@ from .swaggers_schema import (
     exists_response_body
 )
 from .services import (
-    check_if_registry_exists
+    check_if_registry_exists,
+    QueryTest
 )
-
 
 @swagger_auto_schema(
     method='GET',
@@ -28,13 +31,44 @@ from .services import (
 )
 @api_view(['GET'])
 def get_multiple_records_from_registry(request, registryname, versionnumber):
-    # Extract query parameters
     search = request.GET.get('search')
     filter = request.GET.get('filter')
-    ordering = request.GET.get('ordering')
+    ordering = request.GET.get('ordering', "-id")
     page = request.GET.get('page', 1)
     page_size = request.GET.get('page_size', 10)
     query_fieldname = request.GET.get('query.<fieldname>')
+
+    client = Client(schema=Schema(query=Query, mutation=Mutation))
+    context = QueryTest.BaseTestContext()
+    context.user = None
+    if request.user.is_authenticated:
+        context.user = request.user
+    else:
+        context = QueryTest.AnonymousUserContext()
+
+    variable_definitions = ""
+    variable_values = "first: 1, "
+    variables = {}
+    if ordering == "descending":
+        ordering = f"-{filter}"
+    else:
+        ordering = filter
+    result = client.execute(f'''
+        query GetInsurees {{
+            insurees(orderBy: "{ordering}", {filter}:{search} ) {{
+                edges{{
+                    node{{
+                        lastName
+                    }}
+                }}
+            }}
+        }}
+        ''', context=context, variables=variables)
+    if len(result['data']['insurees']['edges']) > 0:
+        message = "Object found from database"
+    else:
+        message = "Object not found from database"
+
 
     filters = []
     if filter == 'FirstName':
@@ -83,8 +117,80 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
     responses={200: create_response_body},
 )
 @api_view(['POST'])
-def create_new_record_in_registry():
-    pass
+def create_new_record_in_registry(request, registryname, versionnumber):
+    query_content = request.data.get('query', {}).get('content')
+
+    if not query_content:
+        status_code = 400
+
+    client = Client(schema=Schema(query=Query, mutation=Mutation))
+    context = QueryTest.BaseTestContext()
+    context.user = None
+    if request.user.is_authenticated:
+        context.user = request.user
+    else:
+        context = QueryTest.AnonymousUserContext()
+
+    # Variables to insert into the query.
+    if 'ID' in query_content:
+        chf_id = query_content['ID']
+    if 'FirstName' in query_content:
+        first_name = query_content['FirstName']
+    if 'LastName' in query_content:
+        last_name = query_content['LastName']
+    if 'BirthCertificateID' in query_content:
+        birth_certificate_id = query_content['BirthCertificateID']
+
+    variables = {
+        'clientMutationLabel': f'Create insuree - {chf_id}',
+        'chfId': chf_id,
+        'lastName': f'{first_name}',
+        'otherNames': f'{last_name}',
+        'genderId': 'M',
+        'dob': '2000-06-20',
+        'head': True,
+        'cardIssued': False,
+        'jsonExt': '{}',
+    }
+
+    query = f'''
+    mutation {{
+        createInsuree(
+            input: {{
+                clientMutationId: "{variables['clientMutationId']}"
+                clientMutationLabel: "{variables['clientMutationLabel']}"
+                chfId: "{variables['chfId']}"
+                lastName: "{variables['lastName']}"
+                otherNames: "{variables['otherNames']}"
+                genderId: "{variables['genderId']}"
+                dob: "{variables['dob']}"
+                head: {str(variables['head']).lower()}
+                cardIssued: {str(variables['cardIssued']).lower()}
+                jsonExt: "{variables['jsonExt']}"
+            }}
+        ) {{
+            clientMutationId
+            internalId
+        }}
+    }}
+    '''
+    result = client.execute(query, context=context, variables=variables)
+
+    # get single record from registry by chfID
+
+    response_data = {
+        "content": {
+            "ID": chf_id,
+            "FirstName": f'{first_name}',
+            "LastName": f'{last_name}',
+            "BirthCertificate": ""
+        }
+    }
+
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
+
 
 
 @swagger_auto_schema(
@@ -100,62 +206,53 @@ def check_if_record_exists_in_registry(request, registryname, versionnumber):
     if not query_content:
         status_code = 400
 
+    client = Client(schema=Schema(query=Query, mutation=Mutation))
+    context = QueryTest.BaseTestContext()
+    context.user = None
+    if request.user.is_authenticated:
+        context.user = request.user
+    else:
+        context = QueryTest.AnonymousUserContext()
 
-    # SAMPLE CODE THAT USES GRAPHQL
-    import requests
-    from django.http import JsonResponse
+    variable_definitions = ""
+    variable_values = "first: 1, "
+    variables = {}
 
-    # Define the variables for the GraphQL query
-    # variables = {
-    #     "registryname": registryname,
-    #     "versionnumber": versionnumber,
-    #     "queryContent": query_content
-    # }
+    # if 'ID' in query_content:
+    #     variable_definitions += "$ID: String!"
+    #     variable_values += "id: $ID"
+    if 'FirstName' in query_content:
+        variable_definitions += "$otherNames: String!,"
+        variable_values += "otherNames: $otherNames,"
+        variables["otherNames"] = query_content["FirstName"]
+    if 'LastName' in query_content:
+        variable_definitions += "$lastName: String!,"
+        variable_values += "lastName: $lastName,"
+    # if 'BirthCertificateID' in query_content:
+    #     variable_definitions += "$: "
+    #     variable_values += ": $"
+    variable_definitions = variable_definitions[:-1]
+    variable_values = variable_values[:-1]
 
-    # Make a POST request to the GraphQL endpoint with the query and variables
-    # graphql_url = 'http://localhost:8000/api/graphql'
-    # graphql_query = '''
-    #         query CheckIfRecordExists($firstName: String, $lastName: String) {
-    #             insuree(firstName: $firstName, lastName: $lastName) {
-    #                 exists
-    #             }
-    #         }
-    #     '''
-    # graphql_variables = {
-    #     'firstName': request.data.get('query', {}).get('content', {}).get('FirstName'),
-    #     'lastName': request.data.get('query', {}).get('content', {}).get('LastName')
-    # }
-    # graphql_data = {
-    #     'query': graphql_query,
-    #     'variables': graphql_variables
-    # }
-    #graphql_response = requests.post(graphql_url, json=graphql_data)
-    # place where the code freeze^
-    # graphql_result = graphql_response.json()
-
-    # graphql_url = "http://localhost:8000/api/graphql"
-    # response2 = requests.post(graphql_url)
-    # # Check the response status code
-    # if response.status_code != 200:
-    #     return JsonResponse({"detail": "GraphQL request failed"}, status=500)
-
-    # Parse the response JSON
-    # data = response.json()
-    # print(data)
-
-    try:
-        record_exists = check_if_registry_exists(registryname, versionnumber, query_content)
-    except Exception as e:
-        return Response({"detail": str(e)}, status=500)
-
-    if record_exists:
+    result = client.execute(f'''
+    query GetInsurees({variable_definitions}) {{
+        insurees({variable_values}) {{
+            edges{{
+                node{{
+                    lastName
+                }}
+            }}
+        }}
+    }}
+    ''', context=context, variables=variables)
+    if len(result['data']['insurees']['edges']) > 0:
         message = "Object found from database"
     else:
         message = "Object not found from database"
 
     response_data = {
         "answer": {
-            "status": record_exists,
+            "status": 200,
             "message": message
         }
     }

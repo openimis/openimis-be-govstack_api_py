@@ -1,5 +1,8 @@
 from django.db.models import Q
-
+from graphene.test import Client
+from graphene import Schema
+from insuree.schema import Query, Mutation
+from .insureequery import *
 from insuree.models import Insuree
 
 
