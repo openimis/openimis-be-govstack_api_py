@@ -23,3 +23,16 @@ def check_if_registry_exists(registryname, versionnumber, query_content) -> bool
     insuree_exists = Insuree.objects.filter(*filters).exists()
 
     return insuree_exists
+
+
+def get_client(schema, query, mutation):
+    return Client(schema=schema(query=query, mutation=mutation))
+
+def get_context(request):
+    context = QueryTest.BaseTestContext()
+    context.user = None
+    if request.user.is_authenticated:
+        context.user = request.user
+    else:
+        context = QueryTest.AnonymousUserContext()
+    return context

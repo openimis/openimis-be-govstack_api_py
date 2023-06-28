@@ -7,7 +7,7 @@ create_request_body = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         'write': openapi.Schema(type=openapi.TYPE_OBJECT, properties={
-            'content': openapi.Schema(type=openapi.TYPE_STRING, description='Treść do zapisania')
+            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Treść do zapisania')
         })
     },
     required=['write']
@@ -17,11 +17,40 @@ create_response_body = openapi.Response('response description', openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         'write': openapi.Schema(type=openapi.TYPE_OBJECT, properties={
-            'content': openapi.Schema(type=openapi.TYPE_STRING, description='Treść do zapisania')
+            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Treść do zapisania')
         })
     },
     required=['write']
 ))
+
+content_schema = openapi.Schema(type=openapi.TYPE_OBJECT, ref='#/components/schemas/Example')
+
+query_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'query': openapi.Schema(type=openapi.TYPE_OBJECT, properties={'content': content_schema}, required=['content']),
+    },
+    required=['query']
+)
+
+responses_schema = {
+    '200': openapi.Response(
+        description='',
+        schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'content': content_schema}),
+    ),
+    '404': openapi.Response(
+        description='Record not found',
+        schema=openapi.Schema(type=openapi.TYPE_OBJECT, properties={'detail': openapi.Schema(type=openapi.TYPE_STRING, enum=['no record found'])}),
+    ),
+}
+
+read_record_schema = {
+    'method': 'post',
+    'operation_description': 'Searches and returns one record.',
+    'request_body': query_schema,
+    'responses': responses_schema,
+    'security': [{'apiKey': []}],
+}
 
 
 exists_request_body = openapi.Schema(
@@ -45,6 +74,42 @@ exists_response_body = openapi.Response('response description', openapi.Schema(
     required=['answer']
 ))
 
+content_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={},
+    description='Example object'
+)
+
+query_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={'content': content_schema},
+    required=['content'],
+    description='Search object that needs to be updated'
+)
+
+write_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={'content': content_schema},
+    required=['content'],
+    description='Update found object with the following data'
+)
+
+request_body_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'query': query_schema,
+        'write': write_schema,
+    },
+    required=['write'],
+    description=''
+)
+
+update_record_schema = {
+    'method': 'put',
+    'operation_description': "Updates one existing record in the registry database.",
+    'request_body': request_body_schema,
+    'responses': {200: openapi.Response(description='')}
+}
 
 # Parameters
 
