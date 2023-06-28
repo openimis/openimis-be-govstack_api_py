@@ -1,26 +1,23 @@
-from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.response import Response
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
 from django.http import HttpResponse
 import json
-from graphene import Schema
 from insuree.schema import Query, Mutation
-from insuree.models import Insuree
-from contribution_plan.tests.gql_tests.query_tests import *
 from graphene import Schema
+
 from .swaggers_schema import (
     create_request_body,
     create_response_body,
     get_multiple_records_from_registry_parameters,
     exists_request_body,
-    exists_response_body
+    exists_response_body, update_record_schema, read_record_schema, request_body_schema, responses_schema,
+    create_or_update_response, read_value_parameters, read_value_response_body, delete_parameters, delete_response
 )
 from .services import (
-    check_if_registry_exists,
-    QueryTest
+    get_client, get_context, get_update_registry_query, get_insurees_query, get_query_content_values,
+    get_query_write_values, get_values_for_insurees, get_search_insurees_arguments, get_update_fields,
+    create_insurees_query, delete_insuree_query
 )
 
 @swagger_auto_schema(
@@ -38,71 +35,43 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
     page_size = request.GET.get('page_size', 10)
     query_fieldname = request.GET.get('query.<fieldname>')
 
-    client = Client(schema=Schema(query=Query, mutation=Mutation))
-    context = QueryTest.BaseTestContext()
-    context.user = None
-    if request.user.is_authenticated:
-        context.user = request.user
-    else:
-        context = QueryTest.AnonymousUserContext()
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
-    variable_definitions = ""
     variable_values = "first: 1, "
     variables = {}
     if ordering == "descending":
         ordering = f"-{filter}"
     else:
         ordering = filter
+
+    if query_fieldname:
+        fetched_fields = query_fieldname
+    else:
+        fetched_fields = 'id, lastName, otherNames'
+
     result = client.execute(f'''
         query GetInsurees {{
-            insurees(orderBy: "{ordering}", {filter}:{search} ) {{
+            insurees(orderBy: "{ordering}", {filter}:"{search}" ) {{
                 edges{{
                     node{{
-                        lastName
+                        {fetched_fields}
                     }}
                 }}
             }}
         }}
         ''', context=context, variables=variables)
+    node_list = [edge['node'] for edge in result['data']['insurees']['edges']]
     if len(result['data']['insurees']['edges']) > 0:
         message = "Object found from database"
     else:
         message = "Object not found from database"
 
-
-    filters = []
-    if filter == 'FirstName':
-        filters.append(Q(other_names=search))
-    if filter == 'LastName':
-        filters.append(Q(last_name=search))
-    if filter == 'ID':
-        filters.append(Q(id=search))
-    if filter == 'BirthCertificateID':
-        filters.append(Q(json_ext=search))
-    data = Insuree.objects.filter(*filters).all()
-
-    paginator = Paginator(data, page_size)
-    current_page = paginator.get_page(page)
-
-    if query_fieldname and query_fieldname != 'results':
-        try:
-            Insuree._meta.get_field(query_fieldname)  # Check if the field exists in the Insuree model
-        except FieldDoesNotExist:
-            response_data = {
-                "error": f"The field '{query_fieldname}' does not exist."
-            }
-            response = HttpResponse(json.dumps(response_data))
-            response['Content-Type'] = "application/json; charset=utf-8"
-            response.status_code = 400  # Bad Request
-            return response
-
-        data = data.values_list(query_fieldname, flat=True)
-
     response_data = {
-        "count": current_page.paginator.count,
-        "next": current_page.next_page_number() if current_page.has_next() else None,
-        "previous": current_page.previous_page_number() if current_page.has_previous() else None,
-        "results": list(data)  # Convert queryset or field values to a list
+        "count": len(result['data']['insurees']['edges']),
+        "next": 1,
+        "previous": "string",
+        "results": node_list  # Convert queryset or field values to a list
     }
 
     response = HttpResponse(json.dumps(response_data))
@@ -112,81 +81,31 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
 
 @swagger_auto_schema(
     method='post',
-    operation_description="Creates a new record in the registry database.",
+    operation_description="Create new record",
     request_body=create_request_body,
     responses={200: create_response_body},
 )
 @api_view(['POST'])
 def create_new_record_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
-
-    if not query_content:
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not write_values:
         status_code = 400
 
-    client = Client(schema=Schema(query=Query, mutation=Mutation))
-    context = QueryTest.BaseTestContext()
-    context.user = None
-    if request.user.is_authenticated:
-        context.user = request.user
-    else:
-        context = QueryTest.AnonymousUserContext()
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
-    # Variables to insert into the query.
-    if 'ID' in query_content:
-        chf_id = query_content['ID']
-    if 'FirstName' in query_content:
-        first_name = query_content['FirstName']
-    if 'LastName' in query_content:
-        last_name = query_content['LastName']
-    if 'BirthCertificateID' in query_content:
-        birth_certificate_id = query_content['BirthCertificateID']
+    variables = get_values_for_insurees(write_values)
+    query = create_insurees_query(variables)
 
-    variables = {
-        'clientMutationLabel': f'Create insuree - {chf_id}',
-        'chfId': chf_id,
-        'lastName': f'{first_name}',
-        'otherNames': f'{last_name}',
-        'genderId': 'M',
-        'dob': '2000-06-20',
-        'head': True,
-        'cardIssued': False,
-        'jsonExt': '{}',
-    }
-
-    query = f'''
-    mutation {{
-        createInsuree(
-            input: {{
-                clientMutationId: "{variables['clientMutationId']}"
-                clientMutationLabel: "{variables['clientMutationLabel']}"
-                chfId: "{variables['chfId']}"
-                lastName: "{variables['lastName']}"
-                otherNames: "{variables['otherNames']}"
-                genderId: "{variables['genderId']}"
-                dob: "{variables['dob']}"
-                head: {str(variables['head']).lower()}
-                cardIssued: {str(variables['cardIssued']).lower()}
-                jsonExt: "{variables['jsonExt']}"
-            }}
-        ) {{
-            clientMutationId
-            internalId
-        }}
-    }}
-    '''
-    result = client.execute(query, context=context, variables=variables)
-
-    # get single record from registry by chfID
-
+    client.execute(query, context=context, variables=variables)
     response_data = {
         "content": {
-            "ID": chf_id,
-            "FirstName": f'{first_name}',
-            "LastName": f'{last_name}',
+            "ID": f"{write_values['chfId']}",
+            "FirstName": f"{write_values['otherNames']}",
+            "LastName": f"{write_values['lastName']}",
             "BirthCertificate": ""
         }
     }
-
     response = HttpResponse(json.dumps(response_data))
     response['Content-Type'] = "application/json; charset=utf-8"
     return response
@@ -201,55 +120,21 @@ def create_new_record_in_registry(request, registryname, versionnumber):
 )
 @api_view(['POST'])
 def check_if_record_exists_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
-
-    if not query_content:
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    if not content_values:
         status_code = 400
 
-    client = Client(schema=Schema(query=Query, mutation=Mutation))
-    context = QueryTest.BaseTestContext()
-    context.user = None
-    if request.user.is_authenticated:
-        context.user = request.user
-    else:
-        context = QueryTest.AnonymousUserContext()
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
-    variable_definitions = ""
-    variable_values = "first: 1, "
-    variables = {}
-
-    # if 'ID' in query_content:
-    #     variable_definitions += "$ID: String!"
-    #     variable_values += "id: $ID"
-    if 'FirstName' in query_content:
-        variable_definitions += "$otherNames: String!,"
-        variable_values += "otherNames: $otherNames,"
-        variables["otherNames"] = query_content["FirstName"]
-    if 'LastName' in query_content:
-        variable_definitions += "$lastName: String!,"
-        variable_values += "lastName: $lastName,"
-    # if 'BirthCertificateID' in query_content:
-    #     variable_definitions += "$: "
-    #     variable_values += ": $"
-    variable_definitions = variable_definitions[:-1]
-    variable_values = variable_values[:-1]
-
-    result = client.execute(f'''
-    query GetInsurees({variable_definitions}) {{
-        insurees({variable_values}) {{
-            edges{{
-                node{{
-                    lastName
-                }}
-            }}
-        }}
-    }}
-    ''', context=context, variables=variables)
+    variables = get_values_for_insurees(content_values)
+    variable_values = get_search_insurees_arguments(content_values)
+    query = get_insurees_query(variable_values, "lastName")
+    result = client.execute(query, context=context, variables=variables)
     if len(result['data']['insurees']['edges']) > 0:
         message = "Object found from database"
     else:
         message = "Object not found from database"
-
     response_data = {
         "answer": {
             "status": 200,
@@ -261,36 +146,227 @@ def check_if_record_exists_in_registry(request, registryname, versionnumber):
     response['Content-Type'] = "application/json; charset=utf-8"
     return response
 
+
+@swagger_auto_schema(**update_record_schema)
 @api_view(['PUT'])
-def update_single_record_in_registry():
-    pass
+def update_single_record_in_registry(request, registryname, versionnumber):
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not content_values and not write_values:
+        status_code = 400
+
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
+    variables = get_values_for_insurees(content_values)
+
+    result = client.execute(f'''
+        query GetInsurees {{
+            insurees(first: 1, chfId: "{content_values['chfId']}") {{
+                edges{{
+                    node{{
+                        uuid
+                        chfId
+                    }}
+                }}
+            }}
+        }}
+        ''', context=context, variables=variables)
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+    insuree_uuid = insuree_data['uuid']
+
+    update_fields = get_update_fields(write_values)
+    query = get_update_registry_query(
+        insuree_data['uuid'],
+        insuree_data['chfId'],
+        update_fields
+    )
+    client.execute(query, context=context, variables=variables)
+
+    response_data = {"status": 200}
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
 
 
+@swagger_auto_schema(**read_record_schema)
 @api_view(['POST'])
-def get_single_record_from_registry():
-    pass
+def get_single_record_from_registry(request, registryname, versionnumber):
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+
+    if not content_values:
+        status_code = 400
+
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
+    variable_values = get_search_insurees_arguments(content_values)
+    query = get_insurees_query(variable_values, "lastName otherNames chfId")
+    result = client.execute(query, context=context)
+
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+    chfid = insuree_data['chfId']
+    first_name = insuree_data['otherNames']
+    other_names = insuree_data['lastName']
+
+    if len(result['data']['insurees']['edges']) > 0:
+        response_data = {
+            "content": {
+                "ID": chfid,
+                "FirstName": first_name,
+                "LastName": other_names
+                # "BirthCertificateID":
+            },
+            "status": 200
+        }
+    else:
+        response_data = {
+            "detail": "no record found",
+            "status": 404
+        }
+
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
 
 
+@swagger_auto_schema(
+    method='put',
+    operation_description='Updates multiple records in the registry database that match the input query.',
+    request_body=request_body_schema,
+    responses=responses_schema
+)
 @api_view(['PUT'])
-def update_multiple_records_in_registry():
-    pass
+def update_multiple_records_in_registry(request, registryname, versionnumber):
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not content_values and not write_values:
+        status_code = 400
+
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
+    variables = get_values_for_insurees(content_values)
+
+    variable_values = get_search_insurees_arguments(content_values)
+
+    query = get_insurees_query(variable_values, "uuid chfId")
+    result = client.execute(query, context=context, variables=variables)
+
+    update_fields = get_update_fields(write_values)
+
+    for single_record in result['data']['insurees']['edges']:
+        query = get_update_registry_query(
+            single_record['node']['uuid'],
+            single_record['node']['chfId'],
+            update_fields
+        )
+        client.execute(query, context=context, variables=variables)
+
+    response_data = {"status": 200}
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
 
 
+@swagger_auto_schema(
+    method='post',
+    operation_description='''API updates existing record if matching with input parameters is
+        successful. If record is not found the API will create a new record.''',
+    request_body=request_body_schema,
+    responses=create_or_update_response
+)
 @api_view(['POST'])
-def update_or_create_record_in_registry():
-    pass
+def update_or_create_record_in_registry(request, registryname, versionnumber):
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
 
+    if not content_values or not write_values:
+        status_code = 400
 
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
+    variables = get_values_for_insurees(content_values)
+    variable_values = get_search_insurees_arguments(content_values)
+    query = get_insurees_query(variable_values, "uuid chfId")
+    result = client.execute(query, context=context, variables=variables)
+
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+    if insuree_data:
+        query = get_update_registry_query(
+            insuree_data['uuid'],
+            insuree_data['chfId'],
+            get_update_fields(write_values)
+        )
+    else:
+        query = create_insurees_query(variables)
+    client.execute(query, context=context, variables=variables)
+
+    response_data = {"status": 200}
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
+
+@swagger_auto_schema(
+    method='delete',
+    operation_description='Delete record.',
+    manual_parameters=delete_parameters,
+    responses={204: delete_response},
+)
 @api_view(['DELETE'])
-def delete_record_in_registry():
-    pass
+def delete_record_in_registry(request, registryname, versionnumber, ID):
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
+    query = get_insurees_query(f'chfId: "{ID[:12]}"', "uuid")
+    result = client.execute(query, context=context)
+
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+    if insuree_data:
+        query = delete_insuree_query(insuree_data['uuid'])
+    client.execute(query, context=context)
+
+    response_data = {"status": 204}
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
 
 
+@swagger_auto_schema(
+    method='get',
+    operation_description='Searches and returns one record’s one field value.',
+    manual_parameters=read_value_parameters,
+    responses={200: read_value_response_body},
+)
 @api_view(['GET'])
-def get_record_field_value_from_registry():
-    pass
+def get_record_field_value_from_registry(
+        request,
+        registryname,
+        versionnumber,
+        uuid,
+        field,
+        ext
+):
+    client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
+    query = get_insurees_query(f'chfId: "{uuid}"', f"{field}")
+    result = client.execute(query, context=context)
+
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+
+    if isinstance(insuree_data[field], str):
+        response_data = insuree_data[field]
+    else:
+        response_data = {"value": insuree_data[field]}
+    response = HttpResponse(json.dumps(response_data))
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
 
 @api_view(['GET'])
 def get_personal_data_usage():
-    pass
+    response_data = {"error": "Resource not found"}
+    response = HttpResponse(json.dumps(response_data), status=404)
+    response['Content-Type'] = "application/json; charset=utf-8"
+    return response
