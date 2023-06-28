@@ -20,8 +20,8 @@ urlpatterns = [
     path('data/<str:registryname>/<str:versionnumber>/update', update_single_record_in_registry),
     path('data/<str:registryname>/<str:versionnumber>/update-entries', update_multiple_records_in_registry),
     path('data/<str:registryname>/<str:versionnumber>/update-or-create', update_or_create_record_in_registry),
-    path('data/<str:registryname>/<str:versionnumber>/{ID}/delete', delete_record_in_registry),
-    path('data/<str:registryname>/<str:versionnumber>/{uuid}/read-value/{field}.{ext}',
+    path('data/<str:registryname>/<str:versionnumber>/<str:ID>/delete', delete_record_in_registry),
+    path('data/<str:registryname>/<str:versionnumber>/<str:uuid>/read-value/<str:field>.<ext>',
          get_record_field_value_from_registry),
     path('data/myPersonalDataUsage/1.0', get_personal_data_usage),
 ]

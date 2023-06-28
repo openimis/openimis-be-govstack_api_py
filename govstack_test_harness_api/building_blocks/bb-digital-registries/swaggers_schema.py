@@ -7,7 +7,7 @@ create_request_body = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         'write': openapi.Schema(type=openapi.TYPE_OBJECT, properties={
-            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Treść do zapisania')
+            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Content to be saved')
         })
     },
     required=['write']
@@ -17,10 +17,18 @@ create_response_body = openapi.Response('response description', openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
         'write': openapi.Schema(type=openapi.TYPE_OBJECT, properties={
-            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Treść do zapisania')
+            'content': openapi.Schema(type=openapi.TYPE_OBJECT, description='Content to be saved')
         })
     },
     required=['write']
+))
+
+read_value_response_body = openapi.Response('response description', openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    properties={
+        'value': openapi.Schema(type=openapi.TYPE_STRING, description='Value of the specified field')
+    },
+    required=['value']
 ))
 
 content_schema = openapi.Schema(type=openapi.TYPE_OBJECT, ref='#/components/schemas/Example')
@@ -73,6 +81,40 @@ exists_response_body = openapi.Response('response description', openapi.Schema(
     },
     required=['answer']
 ))
+
+delete_response = openapi.Response(description='No content')
+# {
+#   "query": {
+#     "content": {
+#       "LastName": "John Helmuta",
+#       "BirthCertificateID": "RR-1234567889"
+#     }
+#   },
+#   "write": {
+#     "content": {
+#       "FirstName": "Smith Car",
+#       "LastName": "John Helmuta",
+#       "BirthCertificateID": "RR-1234567889"
+#     }
+#   }
+# }
+create_or_update_response = {
+    200: openapi.Response(
+        'Successful update or creation of record',
+        openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'content': openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    description='Updated or newly created object',
+                ),
+            },
+            required=['content'],
+        ),
+    ),
+    400: 'Bad request',
+    500: 'Internal server error',
+}
 
 content_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
@@ -155,8 +197,6 @@ query_fieldname_parameter = openapi.Parameter(
     type=openapi.TYPE_STRING,
 )
 
-# Zbiorcza lista wszystkich parametrów
-
 get_multiple_records_from_registry_parameters = [
     search_parameter,
     filter_parameter,
@@ -164,4 +204,60 @@ get_multiple_records_from_registry_parameters = [
     page_parameter,
     page_size_parameter,
     query_fieldname_parameter,
+]
+
+registryname_parameter = openapi.Parameter(
+    name='registryname',
+    in_=openapi.IN_PATH,
+    description='Registry name',
+    type=openapi.TYPE_STRING,
+)
+
+versionnumber_parameter = openapi.Parameter(
+    name='versionnumber',
+    in_=openapi.IN_PATH,
+    description='Version number',
+    type=openapi.TYPE_STRING,
+)
+
+uuid_parameter = openapi.Parameter(
+    name='uuid',
+    in_=openapi.IN_PATH,
+    description='Primary key',
+    type=openapi.TYPE_STRING,
+)
+
+id_parameter = openapi.Parameter(
+    name='ID',
+    in_=openapi.IN_PATH,
+    description='Primary key',
+    type=openapi.TYPE_STRING,
+)
+
+field_parameter = openapi.Parameter(
+    name='field',
+    in_=openapi.IN_PATH,
+    description='Nazwa pola',
+    type=openapi.TYPE_STRING,
+)
+
+ext_parameter = openapi.Parameter(
+    name='ext',
+    in_=openapi.IN_PATH,
+    description='Format danych',
+    type=openapi.TYPE_STRING,
+)
+
+read_value_parameters = [
+    registryname_parameter,
+    versionnumber_parameter,
+    uuid_parameter,
+    field_parameter,
+    ext_parameter,
+]
+
+delete_parameters = [
+    registryname_parameter,
+    versionnumber_parameter,
+    id_parameter
 ]
