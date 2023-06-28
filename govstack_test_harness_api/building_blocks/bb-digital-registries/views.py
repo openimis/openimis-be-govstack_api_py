@@ -1,15 +1,9 @@
-from django.core.exceptions import FieldDoesNotExist
-from django.db.models import Q
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework.response import Response
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
 from django.http import HttpResponse
 import json
-from graphene import Schema
 from insuree.schema import Query, Mutation
-from insuree.models import Insuree
-# from contribution_plan.tests.gql_tests.query_tests import *
 from graphene import Schema
 
 from .swaggers_schema import (
@@ -21,8 +15,7 @@ from .swaggers_schema import (
     create_or_update_response, read_value_parameters, read_value_response_body, delete_parameters, delete_response
 )
 from .services import (
-    check_if_registry_exists,
-    QueryTest, get_client, get_context, get_update_registry_query, get_insurees_query, get_query_content_values,
+    get_client, get_context, get_update_registry_query, get_insurees_query, get_query_content_values,
     get_query_write_values, get_values_for_insurees, get_search_insurees_arguments, get_update_fields,
     create_insurees_query, delete_insuree_query
 )
@@ -94,64 +87,22 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
 )
 @api_view(['POST'])
 def create_new_record_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('write', {}).get('content')
-    if not query_content:
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not write_values:
         status_code = 400
 
     client = get_client(Schema, Query, Mutation)
     context = get_context(request)
 
-    # Variables to insert into the query.
-    if 'ID' in query_content:
-        # slice it to match 12 chars limit
-        chf_id = query_content['ID'][:12]
-    if 'FirstName' in query_content:
-        first_name = query_content['FirstName']
-    if 'LastName' in query_content:
-        last_name = query_content['LastName']
-    if 'BirthCertificateID' in query_content:
-        birth_certificate_id = query_content['BirthCertificateID']
-
-    variables = {
-        'clientMutationLabel': f'Create insuree - {chf_id}',
-        'chfId': chf_id,
-        'lastName': f'{first_name}',
-        'otherNames': f'{last_name}',
-        'genderId': 'M',
-        'dob': '2000-06-20',
-        'head': True,
-        'cardIssued': False,
-        'jsonExt': '{}',
-    }
-
-    query = f'''
-    mutation {{
-        createInsuree(
-            input: {{
-                clientMutationLabel: "{variables['clientMutationLabel']}"
-                chfId: "{variables['chfId']}"
-                lastName: "{variables['lastName']}"
-                otherNames: "{variables['otherNames']}"
-                genderId: "{variables['genderId']}"
-                dob: "{variables['dob']}"
-                head: {str(variables['head']).lower()}
-                cardIssued: {str(variables['cardIssued']).lower()}
-                jsonExt: "{variables['jsonExt']}"
-                familyId: 1
-            }}
-        ) {{
-            clientMutationId
-            internalId
-        }}
-    }}
-    '''
+    variables = get_values_for_insurees(write_values)
+    query = create_insurees_query(variables)
 
     client.execute(query, context=context, variables=variables)
     response_data = {
         "content": {
-            "ID": chf_id,
-            "FirstName": f'{first_name}',
-            "LastName": f'{last_name}',
+            "ID": f"{write_values['chfId']}",
+            "FirstName": f"{write_values['otherNames']}",
+            "LastName": f"{write_values['lastName']}",
             "BirthCertificate": ""
         }
     }
@@ -169,43 +120,21 @@ def create_new_record_in_registry(request, registryname, versionnumber):
 )
 @api_view(['POST'])
 def check_if_record_exists_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
-
-    if not query_content:
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    if not content_values:
         status_code = 400
 
     client = get_client(Schema, Query, Mutation)
     context = get_context(request)
 
-    variable_values = "first: 1, "
-    variables = {}
-
-    if 'ID' in query_content:
-        variable_values += f'chfId: "{query_content["ID"]}",'
-    if 'FirstName' in query_content:
-        variable_values += f'otherNames: "{query_content["FirstName"]}",'
-    if 'LastName' in query_content:
-        variable_values += f'lastName: "{query_content["LastName"]}",'
-    # if 'BirthCertificateID' in query_content:
-    #     variable_values += ": $"
-    variable_values = variable_values[:-1]
-
-    result = client.execute(f'''
-    query GetInsurees{{
-        insurees({variable_values}) {{
-            edges{{
-                node{{
-                    lastName
-                }}
-            }}
-        }}
-    }}
-    ''', context=context, variables=variables)
+    variables = get_values_for_insurees(content_values)
+    variable_values = get_search_insurees_arguments(content_values)
+    query = get_insurees_query(variable_values, "lastName")
+    result = client.execute(query, context=context, variables=variables)
     if len(result['data']['insurees']['edges']) > 0:
         message = "Object found from database"
     else:
         message = "Object not found from database"
-
     response_data = {
         "answer": {
             "status": 200,
@@ -221,37 +150,15 @@ def check_if_record_exists_in_registry(request, registryname, versionnumber):
 @swagger_auto_schema(**update_record_schema)
 @api_view(['PUT'])
 def update_single_record_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
-    query_write = request.data.get('write', {}).get('content')
-
-    if not query_content and not query_write:
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not content_values and not write_values:
         status_code = 400
 
     client = get_client(Schema, Query, Mutation)
     context = get_context(request)
 
-    content_values = {}
-    write_values = {}
-    content_values['chfId'] = query_content.get('ID', "")
-    content_values['FirstName'] = query_content.get('FirstName', "")
-    content_values['LastName'] = query_content.get('LastName', "")
-    content_values['BirthCertificateID'] = query_content.get('BirthCertificateID', "")
-    write_values['chfId'] = query_write.get('ID', "")
-    write_values['FirstName'] = query_write.get('FirstName', "")
-    write_values['LastName'] = query_write.get('LastName', "")
-    write_values['BirthCertificateID'] = query_write.get('BirthCertificateID', "")
-
-    variables = {
-        'clientMutationLabel': f"Create insuree - {content_values['chfId']}",
-        'chfId': f"{content_values['chfId']}",
-        'lastName': f"{content_values['FirstName']}",
-        'otherNames': f"{content_values['LastName']}",
-        'genderId': 'M',
-        'dob': '2000-06-20',
-        'head': True,
-        'cardIssued': False,
-        'jsonExt': '{}',
-    }
+    variables = get_values_for_insurees(content_values)
 
     result = client.execute(f'''
         query GetInsurees {{
@@ -259,44 +166,21 @@ def update_single_record_in_registry(request, registryname, versionnumber):
                 edges{{
                     node{{
                         uuid
+                        chfId
                     }}
                 }}
             }}
         }}
         ''', context=context, variables=variables)
-
     insuree_data = result['data']['insurees']['edges'][0]['node']
     insuree_uuid = insuree_data['uuid']
 
-    field_mapping = {
-        "chfId": "chfId",
-        "LastName": "lastName",
-        "FirstName": "otherNames"
-    }
-    update_fields = "".join(f'{field_mapping[key]}: "{value}"'
-                            for key, value in write_values.items()
-                            if value and key in field_mapping)
-    query = f'''
-    mutation {{
-      updateInsuree(
-        input: {{
-          clientMutationId: "552f8e55-ed5a-4e1e-a159-ea8f8cec0560"
-          clientMutationLabel: "Update insuree"
-          uuid: "{insuree_uuid}"
-    {update_fields}
-    genderId: "F"
-    head: true
-    dob: "1974-06-11"
-    cardIssued:false
-    familyId: 1
-    relationshipId: 4
-        }}
-      ) {{
-        clientMutationId
-        internalId
-      }}
-    }}
-    '''
+    update_fields = get_update_fields(write_values)
+    query = get_update_registry_query(
+        insuree_data['uuid'],
+        insuree_data['chfId'],
+        update_fields
+    )
     client.execute(query, context=context, variables=variables)
 
     response_data = {"status": 200}
@@ -308,41 +192,18 @@ def update_single_record_in_registry(request, registryname, versionnumber):
 @swagger_auto_schema(**read_record_schema)
 @api_view(['POST'])
 def get_single_record_from_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
 
-    if not query_content:
+    if not content_values:
         status_code = 400
 
     client = get_client(Schema, Query, Mutation)
     context = get_context(request)
 
-    variable_definitions = ""
-    variable_values = "first: 1, "
-    variables = {}
+    variable_values = get_search_insurees_arguments(content_values)
+    query = get_insurees_query(variable_values, "lastName otherNames chfId")
+    result = client.execute(query, context=context)
 
-    if 'ID' in query_content:
-        variable_values += f'chfId: "{query_content["ID"]}",'
-    if 'FirstName' in query_content:
-        variable_values += f'otherNames: "{query_content["FirstName"]}",'
-    if 'LastName' in query_content:
-        variable_values += f'lastName: "{query_content["LastName"]}",'
-    # if 'BirthCertificateID' in query_content:
-    #     variable_values += ": $"
-    variable_values = variable_values[:-1]
-
-    result = client.execute(f'''
-    query GetInsurees {{
-        insurees({variable_values}) {{
-            edges{{
-                node{{
-                    lastName
-                    otherNames
-                    chfId
-                }}
-            }}
-        }}
-    }}
-    ''', context=context, variables=variables)
     insuree_data = result['data']['insurees']['edges'][0]['node']
     chfid = insuree_data['chfId']
     first_name = insuree_data['otherNames']
@@ -377,59 +238,22 @@ def get_single_record_from_registry(request, registryname, versionnumber):
 )
 @api_view(['PUT'])
 def update_multiple_records_in_registry(request, registryname, versionnumber):
-    query_content = request.data.get('query', {}).get('content')
-    query_write = request.data.get('write', {}).get('content')
-
-    if not query_content and not query_write:
+    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    if not content_values and not write_values:
         status_code = 400
 
     client = get_client(Schema, Query, Mutation)
     context = get_context(request)
 
-    content_values = {}
-    write_values = {}
+    variables = get_values_for_insurees(content_values)
 
-    content_values['chfId'] = query_content.get('ID', "")
-    content_values['FirstName'] = query_content.get('FirstName', "")
-    content_values['LastName'] = query_content.get('LastName', "")
-    content_values['BirthCertificateID'] = query_content.get('BirthCertificateID', "")
-    write_values['chfId'] = query_write.get('ID', "")
-    write_values['FirstName'] = query_write.get('FirstName', "")
-    write_values['LastName'] = query_write.get('LastName', "")
-    write_values['BirthCertificateID'] = query_write.get('BirthCertificateID', "")
+    variable_values = get_search_insurees_arguments(content_values)
 
-    variables = {
-        'clientMutationLabel': f"Create insuree - {content_values['chfId']}",
-        'chfId': f"{content_values['chfId']}",
-        'lastName': f"{content_values['LastName']}",
-        'otherNames': f"{content_values['FirstName']}",
-        'genderId': 'M',
-        'dob': '2000-06-20',
-        'head': True,
-        'cardIssued': False,
-        'jsonExt': '{}',
-    }
-
-    variable_values = ""
-    if 'ID' in query_content:
-        variable_values += f'chfId: "{query_content["ID"]}",'
-    if 'FirstName' in query_content:
-        variable_values += f'otherNames: "{query_content["FirstName"]}",'
-    if 'LastName' in query_content:
-        variable_values += f'lastName: "{query_content["LastName"]}",'
-    # if 'BirthCertificateID' in query_content:
-    #     variable_values += ": $"
-    variable_values = variable_values[:-1]
     query = get_insurees_query(variable_values, "uuid chfId")
     result = client.execute(query, context=context, variables=variables)
 
-    field_mapping = {
-        "LastName": "lastName",
-        "FirstName": "otherNames"
-    }
-    update_fields = "".join(f'{field_mapping[key]}: "{value}"'
-                            for key, value in write_values.items()
-                            if value and key in field_mapping)
+    update_fields = get_update_fields(write_values)
 
     for single_record in result['data']['insurees']['edges']:
         query = get_update_registry_query(
@@ -497,7 +321,7 @@ def delete_record_in_registry(request, registryname, versionnumber, ID):
 
     query = get_insurees_query(f'chfId: "{ID[:12]}"', "uuid")
     result = client.execute(query, context=context)
-    print(result)
+
     insuree_data = result['data']['insurees']['edges'][0]['node']
     if insuree_data:
         query = delete_insuree_query(insuree_data['uuid'])
