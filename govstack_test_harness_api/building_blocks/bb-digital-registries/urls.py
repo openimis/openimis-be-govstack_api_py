@@ -10,7 +10,6 @@ from .views import (
     get_record_field_value_from_registry,
     get_personal_data_usage,
     get_single_record_from_registry,
-    login_view
 )
 
 urlpatterns = [
@@ -25,5 +24,4 @@ urlpatterns = [
     path('data/<str:registryname>/<str:versionnumber>/<str:uuid>/read-value/<str:field>.<ext>',
          get_record_field_value_from_registry),
     path('data/myPersonalDataUsage/1.0', get_personal_data_usage),
-    path('login/', login_view),
 ]

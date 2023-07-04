@@ -1,11 +1,9 @@
-import os
 from drf_yasg.utils import swagger_auto_schema
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
 from django.http import HttpResponse
 import json
 from insuree.schema import Query, Mutation
-from core.schema import Query as core_query, Mutation as core_mutation
 from graphene import Schema
 
 from .swaggers_schema import (
@@ -19,7 +17,7 @@ from .swaggers_schema import (
 from .services import (
     get_client, get_context, get_update_registry_query, get_insurees_query, get_query_content_values,
     get_query_write_values, get_values_for_insurees, get_search_insurees_arguments, get_update_fields,
-    create_insurees_query, delete_insuree_query, login_with_env_variables
+    create_insurees_query, delete_insuree_query
 )
 
 @swagger_auto_schema(
@@ -38,7 +36,7 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
     query_fieldname = request.GET.get('query.<fieldname>')
 
     client = get_client(Schema, Query, Mutation)
-    context = login_with_env_variables(request)
+    context = get_context(request)
 
     variable_values = "first: 1, "
     variables = {}
@@ -92,10 +90,13 @@ def create_new_record_in_registry(request, registryname, versionnumber):
     write_values = get_query_write_values(request.data.get('write', {}).get('content'))
     if not write_values:
         status_code = 400
-    context = login_with_env_variables(request)
+
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
     variables = get_values_for_insurees(write_values)
     query = create_insurees_query(variables)
+
     client.execute(query, context=context, variables=variables)
     response_data = {
         "content": {
@@ -110,6 +111,7 @@ def create_new_record_in_registry(request, registryname, versionnumber):
     return response
 
 
+
 @swagger_auto_schema(
     method='post',
     operation_description="Searches records based on input parameters and returns boolean answer (true/false).",
@@ -122,36 +124,26 @@ def check_if_record_exists_in_registry(request, registryname, versionnumber):
     if not content_values:
         status_code = 400
 
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
     variables = get_values_for_insurees(content_values)
     variable_values = get_search_insurees_arguments(content_values)
     query = get_insurees_query(variable_values, "lastName")
     result = client.execute(query, context=context, variables=variables)
-    if 'errors' in result:
-        print(result['errors'][0])
-        response_data = {
-            "answer": {
-                "status": 401,
-                "message": result['errors'][0]
-            }
-        }
+    if len(result['data']['insurees']['edges']) > 0:
+        message = "Object found from database"
     else:
-        if len(result['data']['insurees']['edges']) > 0:
-            message = "Object found from database"
-        else:
-            message = "Object not found from database"
-        response_data = {
-            "answer": {
-                "status": 200,
-                "message": message
-            }
+        message = "Object not found from database"
+    response_data = {
+        "answer": {
+            "status": 200,
+            "message": message
         }
+    }
 
-    response = HttpResponse(json.dumps(response_data), status=response_data['answer']['status'])
+    response = HttpResponse(json.dumps(response_data))
     response['Content-Type'] = "application/json; charset=utf-8"
-    print(response)
     return response
 
 
@@ -163,8 +155,8 @@ def update_single_record_in_registry(request, registryname, versionnumber):
     if not content_values and not write_values:
         status_code = 400
 
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
     variables = get_values_for_insurees(content_values)
 
@@ -205,27 +197,19 @@ def get_single_record_from_registry(request, registryname, versionnumber):
     if not content_values:
         status_code = 400
 
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
     variable_values = get_search_insurees_arguments(content_values)
     query = get_insurees_query(variable_values, "lastName otherNames chfId")
     result = client.execute(query, context=context)
 
-    if not 'errors' in result:
-        insuree_data = result['data']['insurees']['edges'][0]['node']
-        chfid = insuree_data['chfId']
-        first_name = insuree_data['otherNames']
-        other_names = insuree_data['lastName']
+    insuree_data = result['data']['insurees']['edges'][0]['node']
+    chfid = insuree_data['chfId']
+    first_name = insuree_data['otherNames']
+    other_names = insuree_data['lastName']
 
-    if 'errors' in result:
-        print(result['errors'][0])
-        response_data = {
-            "answer": {
-                "status": 401,
-                "message": result['errors'][0]
-            }
-        }
-    elif len(result['data']['insurees']['edges']) > 0:
+    if len(result['data']['insurees']['edges']) > 0:
         response_data = {
             "content": {
                 "ID": chfid,
@@ -241,7 +225,7 @@ def get_single_record_from_registry(request, registryname, versionnumber):
             "status": 404
         }
 
-    response = HttpResponse(json.dumps(response_data), status=response_data['answer']['status'])
+    response = HttpResponse(json.dumps(response_data))
     response['Content-Type'] = "application/json; charset=utf-8"
     return response
 
@@ -259,8 +243,9 @@ def update_multiple_records_in_registry(request, registryname, versionnumber):
     if not content_values and not write_values:
         status_code = 400
 
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
+
     variables = get_values_for_insurees(content_values)
 
     variable_values = get_search_insurees_arguments(content_values)
@@ -299,8 +284,8 @@ def update_or_create_record_in_registry(request, registryname, versionnumber):
     if not content_values or not write_values:
         status_code = 400
 
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
     variables = get_values_for_insurees(content_values)
     variable_values = get_search_insurees_arguments(content_values)
@@ -331,8 +316,8 @@ def update_or_create_record_in_registry(request, registryname, versionnumber):
 )
 @api_view(['DELETE'])
 def delete_record_in_registry(request, registryname, versionnumber, ID):
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
     query = get_insurees_query(f'chfId: "{ID[:12]}"', "uuid")
     result = client.execute(query, context=context)
@@ -363,8 +348,8 @@ def get_record_field_value_from_registry(
         field,
         ext
 ):
-    context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
+    context = get_context(request)
 
     query = get_insurees_query(f'chfId: "{uuid}"', f"{field}")
     result = client.execute(query, context=context)
@@ -385,34 +370,3 @@ def get_personal_data_usage():
     response = HttpResponse(json.dumps(response_data), status=404)
     response['Content-Type'] = "application/json; charset=utf-8"
     return response
-
-@api_view(['POST'])
-def login_view(request):
-    print(request.user)
-    client = get_client(Schema, core_query, core_mutation)
-    username = os.getenv('login_openIMIS')
-    password = os.getenv('password_openIMIS')
-    mutation = f'''
-    mutation {{
-        tokenAuth(username: "{username}", password: "{password}") {{
-            token
-            refreshExpiresIn
-        }}
-    }}
-    '''
-
-    context = get_context(request)
-
-    result = client.execute(mutation, context=context)
-
-    if 'errors' in result:
-        return HttpResponse({'status': 'error', 'message': 'Try again'})
-
-    jwt_token = result['data']['tokenAuth']['token']
-    os.environ['JWT_TOKEN'] = jwt_token
-    request.session['jwt_token'] = jwt_token  # Zapisz token JWT w sesji
-    print(request.user)
-
-    # request.session['jwt_token'] = jwt_token
-    return HttpResponse({'status': 'ok'})
-
