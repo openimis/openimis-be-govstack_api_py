@@ -1,7 +1,6 @@
 import json
 import os
 
-from django.db.models import Q
 from django.http import HttpResponse
 from graphene.test import Client
 from graphene import Schema
