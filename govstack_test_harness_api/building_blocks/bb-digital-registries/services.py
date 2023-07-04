@@ -1,8 +1,14 @@
+import json
+import os
+
 from django.db.models import Q
+from django.http import HttpResponse
 from graphene.test import Client
 from graphene import Schema
+from graphqlclient import GraphQLClient
 from insuree.schema import Query, Mutation
 from .insureequery import *
+from core.schema import Query as core_query, Mutation as core_mutation
 from insuree.models import Insuree
 
 
@@ -12,10 +18,12 @@ def get_client(schema, query, mutation):
 def get_context(request):
     context = QueryTest.BaseTestContext()
     context.user = None
+    print('Request user: ', request.user)
     if request.user.is_authenticated:
         context.user = request.user
     else:
         context = QueryTest.AnonymousUserContext()
+    print('Context user: ', context.user)
     return context
 
 
@@ -160,3 +168,41 @@ def get_update_fields(write_values) -> str:
     return "".join(f'{field_mapping[key]}: "{value}" '
                             for key, value in write_values.items()
                             if value and key in field_mapping)
+
+
+def login(request):
+    client = GraphQLClient('http://localhost:8000/graphql')  # Zastąp to swoim adresem URL
+    mutation = '''
+    mutation {
+        tokenAuth(username: "Admin", password: "admin123") {
+            token
+            refreshExpiresIn
+        }
+    }
+    '''
+    result = client.execute(mutation)
+    result_data = json.loads(result)
+    if 'errors' in result_data:
+        # Obsłuż błędy logowania tutaj
+        pass
+    jwt_token = result_data['data']['tokenAuth']['token']
+    request.session['jwt_token'] = jwt_token  # Zapisz token JWT w sesji
+    return HttpResponse('Logged in.')
+
+
+def login_with_env_variables(request):
+    client = get_client(Schema, core_query, core_mutation)
+    username = os.getenv('login_openIMIS')
+    password = os.getenv('password_openIMIS')
+
+    mutation = f'''
+      mutation {{
+          tokenAuth(username: "{username}", password: "{password}") {{
+              token
+              refreshExpiresIn
+          }}
+      }}
+      '''
+    context = get_context(request)
+    client.execute(mutation, context=context)
+    return context
