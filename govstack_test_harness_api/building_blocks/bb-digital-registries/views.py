@@ -416,4 +416,3 @@ def login_view(request):
 
     request.session['jwt_token'] = jwt_token
     return JsonResponse({'status': 'ok', 'csrf_token': csrf_token, 'jwt_token': jwt_token})  # Zwróć JSON z tokenem CSRF
-

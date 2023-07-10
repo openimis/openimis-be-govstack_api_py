@@ -1,4 +1,5 @@
 from django.urls import path
+
 from .views import (
     get_multiple_records_from_registry,
     create_new_record_in_registry,
@@ -26,4 +27,3 @@ urlpatterns = [
          get_record_field_value_from_registry),
     path('data/myPersonalDataUsage/1.0', get_personal_data_usage),
     path('login/', login_view),
-]
