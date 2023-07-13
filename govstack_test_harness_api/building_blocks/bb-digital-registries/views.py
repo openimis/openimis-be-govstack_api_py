@@ -18,10 +18,13 @@ from .swaggers_schema import (
     exists_response_body, update_record_schema, read_record_schema, request_body_schema, responses_schema,
     create_or_update_response, read_value_parameters, read_value_response_body, delete_parameters, delete_response
 )
-from .services import (
-    get_client, get_context, get_update_registry_query, get_insurees_query, get_query_content_values,
-    get_query_write_values, get_values_for_insurees, get_search_insurees_arguments, get_update_fields,
-    create_insurees_query, delete_insuree_query, login_with_env_variables
+from .services.services import (
+    get_client, get_context, get_query_content_values,
+    get_values_for_insurees, get_search_insurees_arguments, get_update_fields,
+    login_with_env_variables
+)
+from .gql_queries import (
+    get_update_registry_query, get_insurees_query, create_insurees_query, delete_insuree_query
 )
 
 @swagger_auto_schema(
@@ -91,7 +94,7 @@ def get_multiple_records_from_registry(request, registryname, versionnumber):
 )
 @api_view(['POST'])
 def create_new_record_in_registry(request, registryname, versionnumber):
-    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    write_values = get_query_content_values(request.data.get('write', {}).get('content'))
     if not write_values:
         status_code = 400
     context = login_with_env_variables(request)
@@ -120,19 +123,26 @@ def create_new_record_in_registry(request, registryname, versionnumber):
 )
 @api_view(['POST'])
 def check_if_record_exists_in_registry(request, registryname, versionnumber):
-    content_values = get_query_content_values(request.data.get('query', {}).get('content'))
+    original_data = request.data.get('query', {}).get('content')
+
+    content_values = get_query_content_values(
+        original_data,
+        registryname,
+        versionnumber
+    )
+
     if not content_values:
         status_code = 400
 
     context = login_with_env_variables(request)
     client = get_client(Schema, Query, Mutation)
 
-    variables = get_values_for_insurees(content_values)
-    variable_values = get_search_insurees_arguments(content_values)
+    variables = get_values_for_insurees(content_values, registryname, versionnumber)
+    variable_values = get_search_insurees_arguments(original_data, registryname, versionnumber)
+
     query = get_insurees_query(variable_values, "lastName")
     result = client.execute(query, context=context, variables=variables)
     if 'errors' in result:
-        print(result['errors'][0])
         response_data = {
             "answer": {
                 "status": 401,
@@ -161,7 +171,7 @@ def check_if_record_exists_in_registry(request, registryname, versionnumber):
 @api_view(['PUT'])
 def update_single_record_in_registry(request, registryname, versionnumber):
     content_values = get_query_content_values(request.data.get('query', {}).get('content'))
-    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    write_values = get_query_content_values(request.data.get('write', {}).get('content'))
     if not content_values and not write_values:
         status_code = 400
 
@@ -212,9 +222,11 @@ def get_single_record_from_registry(request, registryname, versionnumber):
     variable_values = get_search_insurees_arguments(content_values)
     query = get_insurees_query(variable_values, "lastName otherNames chfId")
     result = client.execute(query, context=context)
-
+    print("result: ", result)
+    print("query: ", query)
     if not 'errors' in result:
         insuree_data = result['data']['insurees']['edges'][0]['node']
+        print(insuree_data)
         chfid = insuree_data['chfId']
         first_name = insuree_data['otherNames']
         other_names = insuree_data['lastName']
@@ -257,7 +269,7 @@ def get_single_record_from_registry(request, registryname, versionnumber):
 @api_view(['PUT'])
 def update_multiple_records_in_registry(request, registryname, versionnumber):
     content_values = get_query_content_values(request.data.get('query', {}).get('content'))
-    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    write_values = get_query_content_values(request.data.get('write', {}).get('content'))
     if not content_values and not write_values:
         status_code = 400
 
@@ -296,7 +308,7 @@ def update_multiple_records_in_registry(request, registryname, versionnumber):
 @api_view(['POST'])
 def update_or_create_record_in_registry(request, registryname, versionnumber):
     content_values = get_query_content_values(request.data.get('query', {}).get('content'))
-    write_values = get_query_write_values(request.data.get('write', {}).get('content'))
+    write_values = get_query_content_values(request.data.get('write', {}).get('content'))
 
     if not content_values or not write_values:
         status_code = 400
@@ -411,9 +423,9 @@ def login_view(request):
 
     jwt_token = result['data']['tokenAuth']['token']
     os.environ['JWT_TOKEN'] = jwt_token
-    request.session['jwt_token'] = jwt_token  # Zapisz token JWT w sesji
+    request.session['jwt_token'] = jwt_token
     csrf_token = get_token(request)
 
     request.session['jwt_token'] = jwt_token
-    return JsonResponse({'status': 'ok', 'csrf_token': csrf_token, 'jwt_token': jwt_token})  # Zwróć JSON z tokenem CSRF
+    return JsonResponse({'status': 'ok', 'csrf_token': csrf_token, 'jwt_token': jwt_token})
 

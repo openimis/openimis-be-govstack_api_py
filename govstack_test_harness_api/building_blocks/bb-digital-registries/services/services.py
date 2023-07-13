@@ -43,7 +43,6 @@ def get_query_content_values(query_content: dict, registry_name: str, version: s
 def get_values_for_insurees(content_values: dict, registry_name: str, version: str) -> dict:
     json_mapping = app_config.digital_registry.get(registry_name, {}).get(version, {})
     mapped_values = {json_mapping[key]: value for key, value in content_values.items() if key in json_mapping}
-
     return {
         'clientMutationLabel': f"Create insuree - {mapped_values.get('chfId', '')}",
         'chfId': f"{mapped_values.get('chfId', '')}",
@@ -59,7 +58,7 @@ def get_values_for_insurees(content_values: dict, registry_name: str, version: s
 
 def get_search_insurees_arguments(query_content: dict, registry_name: str, version: str) -> str:
     insurees_arguments = ""
-    json_mapping = app_config.digital_registry.get(registry_name, {}).get(version, {})
+    json_mapping = app_config.digital_registry.get(registry_name, {}).get(str(version), {})
     for key, value in json_mapping.items():
         if key in query_content:
             insurees_arguments += f'{value}: "{query_content[key]}",'
