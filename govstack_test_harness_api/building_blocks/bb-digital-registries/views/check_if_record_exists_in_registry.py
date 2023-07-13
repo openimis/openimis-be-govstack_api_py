@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from ..serializers.record_exists_serializer import RecordExistsSerializer
 from drf_yasg.utils import swagger_auto_schema
 from .swaggers_schema import exists_request_body, exists_response_body
+from ..swaggers_schema import info_mediator_client
 from ..services.services import login_with_env_variables
 from ..controllers.record_exists_controller import check_if_record_exists
 
@@ -10,6 +11,7 @@ from ..controllers.record_exists_controller import check_if_record_exists
 @swagger_auto_schema(
     method='post',
     operation_description="Searches records based on input parameters and returns boolean answer (true/false).",
+    manual_parameters=[info_mediator_client],
     request_body=exists_request_body,
     responses={200: exists_response_body},
 )

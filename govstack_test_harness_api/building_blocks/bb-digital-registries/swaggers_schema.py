@@ -60,6 +60,13 @@ read_record_schema = {
     'security': [{'apiKey': []}],
 }
 
+info_mediator_client = openapi.Parameter(
+    'Information-Mediator-Client',
+    openapi.IN_HEADER,
+    description="Format is: INSTANCE/CLASS/MEMBER/SUBSYSTEM",
+    type=openapi.TYPE_STRING,
+    required=True
+)
 
 exists_request_body = openapi.Schema(
     type=openapi.TYPE_OBJECT,

@@ -26,6 +26,5 @@ class RecordExistsService:
             self.validated_data["registryname"],
             self.validated_data["versionnumber"]
         )
-        print("context: ", self.context)
         query = get_insurees_query(variable_values, "lastName")
         return self.client.execute_query(query, self.context, variables)
