@@ -1,6 +1,25 @@
 from rest_framework import serializers
 
 from insuree.models import Insuree
+from rest_framework import serializers
+
+
+class QueryContentValidatorSerializer(serializers.Serializer):
+    content = serializers.DictField()
+
+    class Meta:
+        fields = ['content']
+
+
+class QueryValidatorSerializer(serializers.Serializer):
+    query = QueryContentValidatorSerializer()
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        return ret.get('query', {}).get('content', {})
+
+    class Meta:
+        fields = ['query']
 
 
 class InsureeSerializer(serializers.ModelSerializer):

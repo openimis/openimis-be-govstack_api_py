@@ -6,7 +6,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
-from .serializers import InsureeSerializer
+
+from .controllers.single_record_controllers import get_single_record_controller
+from .serializers import InsureeSerializer, QueryValidatorSerializer
 
 from govstack_api.building_blocks.bb_digital_registries.serializers import InsureeSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
@@ -59,13 +61,13 @@ class SearchRecordView(APIView):
         responses={200: response_200_body},
     )
     def post(self, request, registryname, versionnumber):
-        data = request.data.get('query', {}).get('content', {})
-        serializer = InsureeSerializer(data=data)
+        serializer = QueryValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            # use controller
+            status_code = get_single_record_controller(request, serializer.data, registryname, versionnumber)
             # handle other errors
-            # send response that matches scheme
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            if status_code == 200:
+                # send response that matches scheme
+                return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
