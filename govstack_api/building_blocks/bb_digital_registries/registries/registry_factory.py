@@ -9,8 +9,8 @@ class RegistryFactory:
             # Dodaj więcej tutaj...
         }
 
-    def get_registry_class(self, registryname, versionnumber):
+    def get_registry_class(self, registryname: str, versionnumber: str, request):
         registry_class = self.registry_classes.get((registryname, versionnumber))
         if registry_class is None:
             raise ValueError(f"Unsupported registry: {registryname} version: {versionnumber}")
-        return registry_class()
+        return registry_class(request)
