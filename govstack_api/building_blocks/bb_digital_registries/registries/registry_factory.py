@@ -6,7 +6,7 @@ class RegistryFactory:
         self.registry_classes = {
             ("registryname", "111"): InsureeRegistry,
             # ("registryname2", "version2"): ProductRegistry,
-            # Dodaj więcej tutaj...
+            # add more...
         }
 
     def get_registry_class(self, registryname: str, versionnumber: str, request):
