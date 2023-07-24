@@ -1,48 +1,48 @@
 from django.http import HttpResponse
-from django.conf import settings
-from django.apps import apps
-
-from core.schema import Query as core_query, Mutation as core_mutation
-from graphene.test import Client
-import os
-from graphene import Schema
 import os
 from types import SimpleNamespace
-from django.contrib.auth.models import AnonymousUser
 from graphene import Schema
 from graphene.test import Client
 from unittest import mock
 from core.schema import Query as CoreQuery, Mutation as CoreMutation
 from django.apps import apps
-
-
+from channels.middleware import BaseMiddleware
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from functools import wraps
 
-def middleware_marker(view_func):
+
+def authenticate_decorator(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        request._use_custom_middleware = True
+        config = apps.get_app_config('govstack_api')
+        im_client = config.IM_CLIENT
+        im_header = request.META.get('HTTP_INFORMATION_MEDIATOR_CLIENT')
+        if im_header != im_client:
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            # self.authenticate_user(request)
+            pass
+
         return view_func(request, *args, **kwargs)
     return _wrapped_view
+
 
 class InformationMediatorMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        print("here 1")
-        if getattr(request, '_use_custom_middleware', False):
-            print("decorator is true")
+        if request.headers.get('Information-Mediator-Client', None):
             config = apps.get_app_config('govstack_api')
             im_client = config.IM_CLIENT
             im_header = request.META.get('HTTP_INFORMATION_MEDIATOR_CLIENT')
             if im_header != im_client:
                 return HttpResponse('Unauthorized', status=401)
             else:
-                request.user = self.authenticate_user(request)
-                print(request.user)
-
-        return self.get_response(request)
+                self.authenticate_user(request)
+        response = self.get_response(request)
+        return response
 
     def get_client(self, schema, query, mutation):
         return Client(schema=schema(query=query, mutation=mutation))
@@ -53,11 +53,11 @@ class InformationMediatorMiddleware:
         return SimpleNamespace(user=user)
 
     def get_context(self, request):
-        if request.user.is_authenticated:
+        if hasattr(request, 'user') and request.user.is_authenticated:
             context = self.create_base_context()
             context.user = request.user
         else:
-            context = SimpleNamespace(user=request.user)
+            context = SimpleNamespace(user=None)
         return context
 
     def authenticate_user(self, request):
@@ -67,15 +67,15 @@ class InformationMediatorMiddleware:
 
         mutation = f'''
           mutation {{
-              tokenAuth(username: "Admin", password: "admin123") {{
+              tokenAuth(username: "{username}", password: "{password}") {{
                   token
                   refreshExpiresIn
               }}
           }}
           '''
         context = self.get_context(request)
-        print(mutation)
-        return client.execute(mutation, context=context)
+        result = client.execute(mutation, context=context)
+        return result
 
 
 class AuthenticationMiddleware:
@@ -84,3 +84,23 @@ class AuthenticationMiddleware:
 
     def __call__(self, request):
         return self.get_response(request)
+
+
+#@database_sync_to_async
+def get_user(token):
+    User = get_user_model()
+    try:
+        user = User.objects.get(auth_token=token)
+        return user
+    except User.DoesNotExist:
+        return AnonymousUser()
+
+
+class TokenAuthMiddleware(BaseMiddleware):
+    async def __call__(self, scope, receive, send):
+        headers = dict(scope['headers'])
+        if b'authorization' in headers:
+            token_name, token_key = headers[b'authorization'].decode().split()
+            if token_name.lower() == 'bearer':
+                scope['user'] = await get_user(token_key)
+        return await super().__call__(scope, receive, send)

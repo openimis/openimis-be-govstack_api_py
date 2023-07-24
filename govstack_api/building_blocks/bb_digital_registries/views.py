@@ -1,3 +1,4 @@
+from django.utils.decorators import method_decorator
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.decorators import api_view
 from django.http import HttpResponse, JsonResponse
@@ -20,7 +21,7 @@ from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_or_update_response, read_value_parameters, read_value_response_body, delete_parameters, delete_response,
     response_200_body
 )
-from ...middleware import middleware_marker
+from govstack_api.middleware import authenticate_decorator
 
 
 class SingleRecordAPI(APIView):
@@ -53,9 +54,9 @@ class SingleRecordAPI(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(authenticate_decorator, name='dispatch')
 class SearchRecordView(APIView):
 
-    @middleware_marker
     @swagger_auto_schema(
         operation_description="Read single record from registry.",
         request_body=exists_request_body,
