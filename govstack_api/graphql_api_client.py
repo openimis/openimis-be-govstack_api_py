@@ -23,11 +23,8 @@ class GrapheneClient:
         return context
 
     def execute_query(self, query,variables=None):
-        print("context: ", self.context)
-
         if variables is None:
             variables = {}
-        print("variables: ", variables)
         return self._client.execute(query, context=self.context, variables=variables)
 
     def execute_mutation(self, mutation, variables=None):
