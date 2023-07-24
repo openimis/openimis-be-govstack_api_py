@@ -6,8 +6,9 @@ def get_single_record_controller(request, validated_data, registryname, versionn
     factory = RegistryFactory()
     registry = factory.get_registry_class(registryname, versionnumber, request)
     mapped_data = registry.map_to_graphql(validated_data)
-    registry.get_record(mapped_data)
-    registry.map_from_graphql()
-    # map_from_graphql()
-    # return data with status code
-    return 200
+    registry_record = registry.get_record(mapped_data)
+    if registry_record:
+        registry_record = registry.map_from_graphql(registry_record)
+        return 200, registry_record
+    else:
+        return 204, {}

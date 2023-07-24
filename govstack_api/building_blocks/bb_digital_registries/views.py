@@ -66,11 +66,12 @@ class SearchRecordView(APIView):
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            status_code = get_single_record_controller(request, serializer.data, registryname, versionnumber)
-            # handle other errors
+            status_code, registry_record = get_single_record_controller(request, serializer.data, registryname, versionnumber)
             if status_code == 200:
-                # send response that matches scheme
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return_data = {'content': registry_record}
+                return Response(return_data, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.data, status=status_code)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
