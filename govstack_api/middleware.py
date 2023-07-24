@@ -1,15 +1,15 @@
-from django.http import HttpResponse
 import os
+from functools import wraps
 from types import SimpleNamespace
+from unittest import mock
+
 from graphene import Schema
 from graphene.test import Client
-from unittest import mock
-from core.schema import Query as CoreQuery, Mutation as CoreMutation
+
 from django.apps import apps
-from channels.middleware import BaseMiddleware
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
-from functools import wraps
+from django.http import HttpResponse
+from core.schema import Query as CoreQuery, Mutation as CoreMutation
 
 
 def authenticate_decorator(view_func):
@@ -60,6 +60,10 @@ class InformationMediatorMiddleware:
             context = SimpleNamespace(user=None)
         return context
 
+    # TODO: This mutation-based login approach is a temporary solution. In the future,
+    # we should integrate with an external authentication service. The usage of
+    # this mutation for login purposes should be phased out once that integration
+    # is complete and has been tested to work reliably.
     def authenticate_user(self, request):
         client = self.get_client(Schema, CoreQuery, CoreMutation)
         username = os.getenv('login_openIMIS')
@@ -75,32 +79,11 @@ class InformationMediatorMiddleware:
           '''
         context = self.get_context(request)
         result = client.execute(mutation, context=context)
+        if 'data' in result and 'tokenAuth' in result['data'] and 'token' in result['data']['tokenAuth']:
+            token = result['data']['tokenAuth']['token']
+            if token:
+                request.META['HTTP_AUTHORIZATION'] = f'Bearer {token}'
+                User = get_user_model()
+                user = User.objects.get(username=username)
+                request.user = user
         return result
-
-
-class AuthenticationMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        return self.get_response(request)
-
-
-#@database_sync_to_async
-def get_user(token):
-    User = get_user_model()
-    try:
-        user = User.objects.get(auth_token=token)
-        return user
-    except User.DoesNotExist:
-        return AnonymousUser()
-
-
-class TokenAuthMiddleware(BaseMiddleware):
-    async def __call__(self, scope, receive, send):
-        headers = dict(scope['headers'])
-        if b'authorization' in headers:
-            token_name, token_key = headers[b'authorization'].decode().split()
-            if token_name.lower() == 'bearer':
-                scope['user'] = await get_user(token_key)
-        return await super().__call__(scope, receive, send)
