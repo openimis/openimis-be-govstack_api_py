@@ -20,6 +20,7 @@ from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_or_update_response, read_value_parameters, read_value_response_body, delete_parameters, delete_response,
     response_200_body
 )
+from ...middleware import middleware_marker
 
 
 class SingleRecordAPI(APIView):
@@ -54,6 +55,7 @@ class SingleRecordAPI(APIView):
 
 class SearchRecordView(APIView):
 
+    @middleware_marker
     @swagger_auto_schema(
         operation_description="Read single record from registry.",
         request_body=exists_request_body,
