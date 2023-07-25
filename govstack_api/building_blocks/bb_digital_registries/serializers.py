@@ -22,12 +22,9 @@ class QueryValidatorSerializer(serializers.Serializer):
         fields = ['query']
 
 
-class InsureeSerializer(serializers.ModelSerializer):
-    ID = serializers.CharField(source='id')
-    FirstName = serializers.CharField(source='other_names')
-    LastName = serializers.CharField(source='last_name')
-    BirthCertificateID = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = Insuree
-        fields = ['ID', 'FirstName', 'LastName', 'BirthCertificateID']
+class SingleRecordSerializer(serializers.Serializer):
+    registryname = serializers.CharField(max_length=100)
+    versionnumber = serializers.CharField(max_length=10)
+    uuid = serializers.UUIDField()
+    field = serializers.CharField(max_length=50)
+    ext = serializers.CharField(max_length=10)

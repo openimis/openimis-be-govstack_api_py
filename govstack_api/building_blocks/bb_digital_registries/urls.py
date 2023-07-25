@@ -1,13 +1,13 @@
 from django.urls import path
 from .views import (
     SearchRecordView, SingleRecordAPI,
-    CheckRecordExistsView, UpdateOrCreateRecordView,
+    CheckRecordPresenceView, UpdateOrCreateRecordView,
     MultipleRecordAPI, PersonalDataAPI
 )
 
 urlpatterns = [
     path('data/<str:registryname>/<str:versionnumber>/create', SingleRecordAPI.as_view()),
-    path('data/<str:registryname>/<str:versionnumber>/exists', CheckRecordExistsView.as_view()),
+    path('data/<str:registryname>/<str:versionnumber>/exists', CheckRecordPresenceView.as_view()),
     path('data/<str:registryname>/<str:versionnumber>/read', SearchRecordView.as_view()),
     path('data/<str:registryname>/<str:versionnumber>/update', SingleRecordAPI.as_view()),
     path('data/<str:registryname>/<str:versionnumber>/update-or-create', UpdateOrCreateRecordView.as_view()),
