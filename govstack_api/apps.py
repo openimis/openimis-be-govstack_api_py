@@ -6,3 +6,5 @@ class TestHarnessApiConfig(AppConfig):
     name = 'govstack_api'
 
     IM_CLIENT = 'eGovStack/GOV/90000009/digitalregistries'
+
+    date_of_birth = '1920-04-02'

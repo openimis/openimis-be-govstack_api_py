@@ -1,14 +1,21 @@
+import base64
 import json
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
+from django.apps import apps
 from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import BaseRegistry
 from govstack_api.graphql_api_client import GrapheneClient
 from insuree.schema import Query, Mutation
 
 
-def get_insurees_query(variable_values: str = "", fetched_fields: str = "") -> str:
+config = apps.get_app_config('govstack_api')
+
+
+def get_insurees_query(arguments_with_variables: str = "", fetched_fields: str = "") -> str:
     return f'''
             query GetInsurees {{
-                insurees({variable_values}) {{
+                insurees({arguments_with_variables}) {{
                     edges{{
                         node{{
                             {fetched_fields}
@@ -19,28 +26,112 @@ def get_insurees_query(variable_values: str = "", fetched_fields: str = "") -> s
             '''
 
 
+def get_update_registry_query(variables_values: str = "") -> str:
+    query = f'''
+                mutation {{
+                  updateInsuree(
+                    input: {{
+                      clientMutationId: "552f8e55-ed5a-4e1e-a159-ea8f8cec0560"
+                      clientMutationLabel: "Update insuree"
+                      {variables_values}
+                    }}
+                  ) {{
+                    clientMutationId
+                    internalId
+                  }}
+                }}
+                '''
+    return query
+
+
+
+def get_create_registry_query(
+        arguments_with_values: str = "",
+        family_id="familyId: 1",
+        gender_id='genderId: "U"',
+        dob=config.date_of_birth,
+        head='head: false',
+        card_issued='cardIssued: false'
+) -> str:
+    return f'''
+        mutation {{
+          createInsuree(
+            input: {{
+              clientMutationId: "9d738f06-7855-455a-840f-99aa85d2308e"
+              clientMutationLabel: "Create insuree"
+              chfID: "{arguments_with_values['id']}"
+              {arguments_with_values}
+              {family_id}
+              {gender_id}
+              {dob}
+              {head}
+              {card_issued}
+            }}
+          ) {{
+            clientMutationId
+            internalId
+          }}
+        }}
+        '''
+
+
 class InsureeRegistry(BaseRegistry):
 
     def __init__(self, request):
         self.client = GrapheneClient(request, Query, Mutation)
         self.fields_mapping = {
-            'ID': 'uuid',
+            'ID': 'id',
             'FirstName': 'otherNames',
             'LastName': 'lastName',
+            'uuid': 'uuid'
         }
         self.special_fields = ['BirthCertificateID', 'PersonalData']
 
-    def get_record(self, mapped_data):
-
+    def get_record(self, mapped_data, fetched_fields=None, only_first=True):
         # workaround because for now we lack on filtering json_ext
-        fetched_fields = ', '.join(mapped_data.keys())
+        if not fetched_fields:
+            fetched_fields = ', '.join(mapped_data.keys())
         mapped_data.pop('jsonExt', None)
 
-        variable_values = ', '.join(f'{field}: "{value}"' for field, value in mapped_data.items())
-        query = get_insurees_query(variable_values, fetched_fields)
+        mapped_data = self.encode_id(mapped_data)
+        arguments_with_values = ', '.join(f'{field}: "{value}"' for field, value in mapped_data.items())
+        query = get_insurees_query(arguments_with_values, fetched_fields)
         result = self.client.execute_query(query)
-        first_record = self.extract_records(result, only_first=True)
-        return first_record
+        registry_data = self.extract_records(result, only_first)
+        return registry_data
+
+    def read_record(self, mapped_data, only_first=True):
+        # it can be function above without common part
+        pass
+
+    def get_record_field(self, mapped_data, validate_data):
+        insuree_data = self.get_record(mapped_data, validate_data['field'])
+        insuree_data = self.change_result_extension(insuree_data, validate_data['ext'])
+        return insuree_data
+
+    def retrieve_filtered_records(self, mapped_data):
+        return self.get_record(mapped_data, only_first=False)
+
+    def update_registry_record(self, mapped_data):
+        insuree_uuid = self.get_record_field(self, mapped_data, "uuid", "string")
+        mapped_data['uuid'] = insuree_uuid
+        arguments_with_values = self.create_query_string(mapped_data)
+        query = get_update_registry_query(arguments_with_values)
+        self.client.execute_query(query)
+        return 200
+
+    def create_registry_record(self, mapped_data):
+        arguments_with_values = self.create_query_string(mapped_data)
+        query = get_create_registry_query(arguments_with_values)
+        self.client.execute_query(query)
+        return 200
+
+    def create_or_update_registry_record(self, mapped_data):
+        insuree_uuid = self.get_record_field(self, mapped_data, "uuid", "string")
+        if insuree_uuid:
+            self.update_registry_record(mapped_data)
+        else:
+            self.create_registry_record(mapped_data)
 
     def map_to_graphql(self, validated_data):
         mapped_data = {}
@@ -91,4 +182,28 @@ class InsureeRegistry(BaseRegistry):
             return None
 
 
+    def dict_to_xml(data_dict):
+        xml_elements = ET.Element('root')
+        for key, value in data_dict.items():
+            child = ET.SubElement(xml_elements, key)
+            child.text = str(value)
+        return minidom.parseString(ET.tostring(xml_elements)).toprettyxml()
 
+    def change_result_extension(self, data, extension):
+        if extension == 'json':
+            return json.dumps(data)
+        elif extension == 'string':
+            return str(data)
+        elif extension == 'xml':
+            return self.dict_to_xml(data)
+        else:
+            raise ValueError(f"Unknown extension type: {extension}")
+
+    def encode_id(self, mapped_data):
+        if 'id' in mapped_data:
+            id_value = mapped_data['id']
+            mapped_data['id'] = base64.b64encode(f"Insuree:{id_value}".encode()).decode()
+        return mapped_data
+
+    def create_query_string(self, mapped_data):
+        return ', '.join(f'{field}: "{value}"' for field, value in mapped_data.items())

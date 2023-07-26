@@ -1,7 +1,7 @@
 from govstack_api.building_blocks.bb_digital_registries.registries.registry_factory import RegistryFactory
 
 
-def get_single_record_controller(request, validated_data, registryname, versionnumber):
+def read_single_record_controller(request, validated_data, registryname, versionnumber):
     # do we want to use a specific serializer?
     factory = RegistryFactory()
     registry = factory.get_registry_class(registryname, versionnumber, request)
@@ -10,5 +10,16 @@ def get_single_record_controller(request, validated_data, registryname, versionn
     if registry_record:
         registry_record = registry.map_from_graphql(registry_record)
         return 200, registry_record
+    else:
+        return 404, {}
+
+
+def get_single_record_field_controller(request, validated_data, registryname, versionnumber):
+    factory = RegistryFactory()
+    registry = factory.get_registry_class(registryname, versionnumber, request)
+    mapped_data = registry.map_to_graphql(validated_data)
+    registry_record_field = registry.get_record_field(mapped_data, validated_data)
+    if registry_record_field:
+        return 200, registry_record_field
     else:
         return 404, {}

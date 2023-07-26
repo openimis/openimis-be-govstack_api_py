@@ -8,10 +8,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
-from .controllers.single_record_controllers import get_single_record_controller
-from .serializers import InsureeSerializer, QueryValidatorSerializer
+from .controllers.check_record_presence_controller import check_record_presence_controller
+from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller
+from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer
 
-from govstack_api.building_blocks.bb_digital_registries.serializers import InsureeSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_request_body,
     create_response_body,
@@ -31,6 +31,21 @@ class SingleRecordAPI(APIView):
         responses={200: read_value_response_body},
     )
     def get(self, request, registryname, versionnumber, uuid, field, ext):
+        serializer = SingleRecordSerializer(data={
+            'registryname': registryname,
+            'versionnumber': versionnumber,
+            'uuid': uuid,
+            'field': field,
+            'ext': ext
+        })
+        if serializer.is_valid():
+            status_code, registry_record_field = get_single_record_field_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            if status_code == 200:
+                return Response(registry_record_field, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.data, status=status_code)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
@@ -66,7 +81,7 @@ class SearchRecordView(APIView):
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            status_code, registry_record = get_single_record_controller(request, serializer.data, registryname, versionnumber)
+            status_code, registry_record = read_single_record_controller(request, serializer.data, registryname, versionnumber)
             if status_code == 200:
                 return_data = {'content': registry_record}
                 return Response(return_data, status=status.HTTP_200_OK)
@@ -76,15 +91,26 @@ class SearchRecordView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CheckRecordExistsView(APIView):
+class CheckRecordPresenceView(APIView):
     @swagger_auto_schema(
         operation_description="Searches records based on input parameters and returns boolean answer (true/false).",
         request_body=exists_request_body,
         responses={200: exists_response_body},
     )
     def post(self, request, registryname, versionnumber):
-        # check if record exists
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = QueryValidatorSerializer(data=request.data)
+        if serializer.is_valid():
+            status_code, record_exists = check_record_presence_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            message = "Object found from database" if record_exists else "Object not found from database"
+            return Response({
+                "answer": {
+                    "status": record_exists,
+                    "message": message}},
+                status=status_code)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UpdateOrCreateRecordView(APIView):
@@ -101,10 +127,11 @@ class UpdateOrCreateRecordView(APIView):
 class MultipleRecordAPI(APIView):
 
     @swagger_auto_schema(
-        operation_description="Creates a new record in the registry database.",
+        operation_description="Get records from the registry database.",
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
     def get(self, request, registryname, versionnumber):
+        serializer = MultipleRecordsSerializer()
         return HttpResponse(status=204)  # 204 No Content
 
     @swagger_auto_schema(
