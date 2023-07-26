@@ -25,14 +25,14 @@ class MultipleRecordsSerializer(serializers.Serializer):
     registryname = serializers.CharField(max_length=100)
     versionnumber = serializers.CharField(max_length=10)
     search = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
+    filter = serializers.CharField(max_length=10)
+    ordering = serializers.CharField(max_length=10)
+    page = serializers.serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    fieldname = serializers.CharField(max_length=50)
 
     class Meta:
-        fields = ['registryname', 'versionnumber', 'uuid', 'field', 'ext']
+        fields = ['registryname', 'versionnumber', 'search', 'filter', 'ordering', 'page', 'page_size', 'fieldname']
 
 
 class ContentValidatorSerializer(serializers.Serializer):
