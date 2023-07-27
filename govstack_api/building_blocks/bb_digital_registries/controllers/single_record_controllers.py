@@ -18,8 +18,23 @@ def get_single_record_field_controller(request, validated_data, registryname, ve
     factory = RegistryFactory()
     registry = factory.get_registry_class(registryname, versionnumber, request)
     mapped_data = registry.map_to_graphql(validated_data)
-    registry_record_field = registry.get_record_field(mapped_data, validated_data)
+    registry_record_field = registry.get_record_field(
+        mapped_data, validated_data, validated_data['field'], validated_data['ext']
+    )
     if registry_record_field:
         return 200, registry_record_field
     else:
         return 404, {}
+
+
+def update_single_record_controller(request, validated_data, registryname, versionnumber):
+    factory = RegistryFactory()
+    registry = factory.get_registry_class(registryname, versionnumber, request)
+    mapped_data_query = registry.map_to_graphql(validated_data['query'])
+    mapped_data_write = registry.map_to_graphql(validated_data['write'])
+    registry_record_field = registry.update_registry_record(mapped_data_query, mapped_data_write)
+    return registry_record_field
+
+
+def create_single_record_controller(request, validated_data, registryname, versionnumber):
+    pass

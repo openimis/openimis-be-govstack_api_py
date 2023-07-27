@@ -37,6 +37,8 @@ class InformationMediatorMiddleware:
             config = apps.get_app_config('govstack_api')
             im_client = config.IM_CLIENT
             im_header = request.META.get('HTTP_INFORMATION_MEDIATOR_CLIENT')
+            # TODO: Temporary comparison awaiting information mediator setup.
+            # This check will likely be updated when the setup is complete.
             if im_header != im_client:
                 return HttpResponse('Unauthorized', status=401)
             else:
@@ -47,15 +49,9 @@ class InformationMediatorMiddleware:
     def get_client(self, schema, query, mutation):
         return Client(schema=schema(query=query, mutation=mutation))
 
-    def create_base_context(self):
-        user = mock.Mock(is_anonymous=False)
-        user.has_perm = mock.MagicMock(return_value=False)
-        return SimpleNamespace(user=user)
-
     def get_context(self, request):
         if hasattr(request, 'user') and request.user.is_authenticated:
-            context = self.create_base_context()
-            context.user = request.user
+            context = SimpleNamespace(user=request.user)
         else:
             context = SimpleNamespace(user=None)
         return context
@@ -68,7 +64,6 @@ class InformationMediatorMiddleware:
         client = self.get_client(Schema, CoreQuery, CoreMutation)
         username = os.getenv('login_openIMIS')
         password = os.getenv('password_openIMIS')
-
         mutation = f'''
           mutation {{
               tokenAuth(username: "{username}", password: "{password}") {{

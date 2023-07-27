@@ -27,7 +27,7 @@ class MultipleRecordsSerializer(serializers.Serializer):
     search = serializers.CharField(max_length=10)
     filter = serializers.CharField(max_length=10)
     ordering = serializers.CharField(max_length=10)
-    page = serializers.serializers.IntegerField()
+    page = serializers.IntegerField()
     page_size = serializers.IntegerField()
     fieldname = serializers.CharField(max_length=50)
 

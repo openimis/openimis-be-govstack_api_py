@@ -9,18 +9,8 @@ class GrapheneClient:
         self._client = Client(Schema(query=query, mutation=mutation))
         self.context = self.get_context(request)
 
-    def create_base_context(self):
-        user = mock.Mock(is_anonymous=False)
-        user.has_perm = mock.MagicMock(return_value=False)
-        return SimpleNamespace(user=user)
-
     def get_context(self, request):
-        if request.user.is_authenticated:
-            context = self.create_base_context()
-            context.user = request.user
-        else:
-            context = SimpleNamespace(user=request.user)
-        return context
+        return SimpleNamespace(user=request.user)
 
     def execute_query(self, query,variables=None):
         if variables is None:

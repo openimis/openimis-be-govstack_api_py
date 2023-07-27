@@ -9,8 +9,10 @@ from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
 from .controllers.check_record_presence_controller import check_record_presence_controller
-from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller
-from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer
+from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller, \
+    update_single_record_controller
+from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer, \
+    CombinedValidatorSerializer, WriteValidatorSerializer
 
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_request_body,
@@ -54,10 +56,24 @@ class SingleRecordAPI(APIView):
         responses={200: create_response_body},
     )
     def post(self, request, registryname, versionnumber):
+        serializer = WriteValidatorSerializer(data=request.data)
+        if serializer.is_valid():
+            # status, registry_record =
+            pass
         return HttpResponse(status=204)  # 204 No Content
 
-    @swagger_auto_schema(**update_record_schema)
+    @swagger_auto_schema(
+        operation_description="Updates one existing record in the registry database.",
+        request_body=request_body_schema,
+        responses={200: 'Successful update or creation'})
     def put(self, request, registryname, versionnumber):
+        serializer = CombinedValidatorSerializer(data=request.data)
+        if serializer.is_valid():
+            status_code = update_single_record_controller(request, serializer.data, registryname, versionnumber)
+            if status_code == 200:
+                return Response(status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.data, status=status_code)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @swagger_auto_schema(
