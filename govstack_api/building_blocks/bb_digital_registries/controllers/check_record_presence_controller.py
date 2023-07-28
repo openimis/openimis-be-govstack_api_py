@@ -3,7 +3,7 @@ from govstack_api.building_blocks.bb_digital_registries.registries.registry_fact
 
 def check_record_presence_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
-    registry = factory.get_registry_class(registryname, versionnumber, request)
+    registry = factory.get_registry(registryname, versionnumber, request)
     mapped_data = registry.map_to_graphql(validated_data)
     registry_record = registry.get_record(mapped_data)
     if registry_record:
