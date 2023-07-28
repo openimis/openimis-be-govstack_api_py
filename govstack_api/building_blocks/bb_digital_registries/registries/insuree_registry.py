@@ -55,7 +55,7 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
         else:
             return 404
 
-    def update_registry_record(self, mapped_data_query, mapped_data_write):
+    def update_registry_record(self, mapped_data_query, mapped_data_write=None):
         return self.manage_registry_record(self.mutations['update'], mapped_data_query, mapped_data_write)
 
     def create_registry_record(self, mapped_data):
