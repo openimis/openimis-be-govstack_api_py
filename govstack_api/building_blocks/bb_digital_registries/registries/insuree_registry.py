@@ -1,30 +1,18 @@
 import json
 
 from django.apps import apps
-from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import BaseRegistry, RegistryProtocol
+from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import BaseRegistry, RegistryType
 from govstack_api.graphql_api_client import GrapheneClient
 from insuree.schema import Query, Mutation
 
 config = apps.get_app_config('govstack_api')
 
 
-class InsureeRegistry(BaseRegistry, RegistryProtocol):
+class InsureeRegistry(BaseRegistry, RegistryType):
 
     def __init__(self, registry_config, request):
         super().__init__(registry_config, request)
         self.client = GrapheneClient(request, Query, Mutation)
-
-    def get_record(self, mapped_data, fetched_fields=None, only_first=True):
-        # workaround because for now we lack on filtering json_ext
-        if not fetched_fields:
-            fetched_fields = self.create_fetched_fields(mapped_data)
-        mapped_data.pop('jsonExt', None)
-        mapped_data = self.encode_id(mapped_data, "Insuree")
-        arguments_with_values = self.create_arguments_with_values(mapped_data)
-        query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
-        result = self.client.execute_query(query)
-        registry_data = self.extract_records(result, self.queries['get'], only_first)
-        return registry_data
 
     def get_record_field(self, mapped_data, field=None, extension=None):
         insuree_data = self.get_record(mapped_data, field)
@@ -58,7 +46,7 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
         self.manage_registry_record(self.mutations['create'], mapped_data)
         return self.get_record(mapped_data)
 
-    def update_multiple_records(self, mapped_data):
+    def update_multiple_records(self, mapped_data=None):
         insuree_uuids = self.extract_uuids(mapped_data, first=False)
         for insuree_uuid in insuree_uuids:
             # For each UUID, we update the corresponding record with the mapped_data
@@ -123,7 +111,6 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
 
         return mapped_data
 
-
     def extract_uuid(self, mapped_data_query):
         insuree_uuid_json = self.get_record_field(mapped_data=mapped_data_query, field="uuid", extension="json")
         if insuree_uuid_json != 'null':
@@ -131,7 +118,6 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
             return insuree_uuid_dict.get('uuid')
         else:
             return None
-
 
     def get_required_data_for_mutation(self, mapped_data: dict) -> dict:
         """
@@ -145,19 +131,3 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
             if key in adapted_data:
                 del adapted_data[key]
         return adapted_data
-
-    def create_arguments_with_values(self, mapped_data: dict) -> str:
-        arguments = []
-        for field, value in mapped_data.items():
-            if field == 'jsonExt' and isinstance(value, str):
-                formatted_value = value.replace('"', '\\"')
-                arguments.append(f'{field}: "{formatted_value}"')
-            elif field == 'id':
-                try:
-                    value = int(value)
-                    arguments.append(f'{field}: {value}')
-                except ValueError:
-                    arguments.append(f'{field}: "{value}"')
-            else:
-                arguments.append(f'{field}: "{value}"')
-        return ', '.join(arguments)

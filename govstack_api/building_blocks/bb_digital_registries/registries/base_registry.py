@@ -5,7 +5,7 @@ from typing import Protocol
 from xml.dom import minidom
 
 
-class RegistryProtocol(Protocol):
+class RegistryType(Protocol):
 
     def map_to_graphql(self) -> None:
         ...
@@ -44,10 +44,23 @@ class RegistryProtocol(Protocol):
 class BaseRegistry:
     def __init__(self, config, request):
         self.fields_mapping = config['fields_mapping']
+        self.model = config['model']
         self.special_fields = config['special_fields']
         self.default_values = config['default_values']
         self.queries = config['queries']
         self.mutations = config['mutations']
+
+    def get_record(self, mapped_data, fetched_fields=None, only_first=True):
+        # workaround because for now we lack on filtering json_ext
+        if not fetched_fields:
+            fetched_fields = self.create_fetched_fields(mapped_data)
+        mapped_data.pop('jsonExt', None)
+        mapped_data = self.encode_id(mapped_data, self.model)
+        arguments_with_values = self.create_arguments_with_values(mapped_data)
+        query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
+        result = self.client.execute_query(query)
+        registry_data = self.extract_records(result, self.queries['get'], only_first)
+        return registry_data
 
     def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
         default_values_str = " ".join(default_values.values())
@@ -115,3 +128,19 @@ class BaseRegistry:
             return self.dict_to_xml(data)
         else:
             raise ValueError(f"Unknown extension type: {extension}")
+
+    def create_arguments_with_values(self, mapped_data: dict) -> str:
+        arguments = []
+        for field, value in mapped_data.items():
+            if field == 'jsonExt' and isinstance(value, str):
+                formatted_value = value.replace('"', '\\"')
+                arguments.append(f'{field}: "{formatted_value}"')
+            elif field == 'id':
+                try:
+                    value = int(value)
+                    arguments.append(f'{field}: {value}')
+                except ValueError:
+                    arguments.append(f'{field}: "{value}"')
+            else:
+                arguments.append(f'{field}: "{value}"')
+        return ', '.join(arguments)

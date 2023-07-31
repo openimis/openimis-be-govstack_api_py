@@ -1,5 +1,5 @@
 {
-  "InsureeRegistry": {
+  "registryname": {
     "111": {
       "class": "InsureeRegistry",
       "fields_mapping": {
@@ -21,8 +21,8 @@
         "delete": "deleteInsurees",
         "update": "updateInsuree"
       },
-      "query": {
-        "get": "GetInsurees"
+      "queries": {
+        "get": "insurees"
       }
     }
   }

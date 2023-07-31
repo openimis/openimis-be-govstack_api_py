@@ -70,7 +70,6 @@ def create_or_update_record_controller(request, validated_data, registryname, ve
         return 404, {}
 
 
-
 def delete_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request)

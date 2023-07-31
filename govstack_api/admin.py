@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import Registry
 
-# Register your models here.
+
+@admin.register(Registry)
+class RegistryAdmin(admin.ModelAdmin):
+    pass
