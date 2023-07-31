@@ -6,9 +6,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
-from .controllers.check_record_presence_controller import check_record_presence_controller
+from .controllers.multiple_record_controllers import update_multiple_records_controller, get_list_of_records_controller
 from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller, \
-    update_single_record_controller, create_single_record_controller, delete_record_controller
+    update_single_record_controller, create_single_record_controller, delete_record_controller, \
+    create_or_update_record_controller, check_record_presence_controller
 from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer, \
     CombinedValidatorSerializer, WriteValidatorSerializer, RegistryDeleteSerializer
 
@@ -147,6 +148,15 @@ class UpdateOrCreateRecordView(APIView):
         responses=create_or_update_response
     )
     def post(self, request, registryname, versionnumber):
+        serializer = CombinedValidatorSerializer(data=request.data)
+        if serializer.is_valid():
+            status_code, registry_record = create_or_update_record_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            if status_code == 200:
+                return Response(registry_record, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.data, status=status_code)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -156,8 +166,24 @@ class MultipleRecordAPI(APIView):
         operation_description="Get records from the registry database.",
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
-    def get(self, request, registryname, versionnumber):
-        serializer = MultipleRecordsSerializer()
+    def get(self, request, registryname, versionnumber, search, filter, ordering, page, fieldname):
+        serializer = MultipleRecordsSerializer(data={
+            {
+                'request': request,
+                'registryname': registryname,
+                'versionnumber': versionnumber,
+                'search': search,
+                'filter': filter,
+                'ordering': ordering,
+                'page': page,
+                'fieldname': fieldname
+            }
+        })
+        if serializer.is_valid():
+            status_code, list_of_records = get_list_of_records_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            # put code here
         return HttpResponse(status=204)  # 204 No Content
 
     @swagger_auto_schema(
@@ -166,7 +192,16 @@ class MultipleRecordAPI(APIView):
         responses=responses_schema
     )
     def put(self, request, registryname, versionnumber):
-        return HttpResponse(status=204)  # 204 No Content
+        serializer = CombinedValidatorSerializer(data=request.data)
+        if serializer.is_valid():
+            status_code, registry_records = update_multiple_records_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            if status_code == 200:
+                return Response(status=status.HTTP_200_OK)
+            else:
+                return Response(status=status_code)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PersonalDataAPI(APIView):

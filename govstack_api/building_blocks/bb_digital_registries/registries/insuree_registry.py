@@ -82,6 +82,7 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
             self.update_registry_record(mapped_data)
         else:
             self.create_registry_record(mapped_data)
+        return self.get_record(mapped_data)
 
     def map_to_graphql(self, validated_data):
         mapped_data = {}
