@@ -6,10 +6,32 @@ from xml.dom import minidom
 
 
 class RegistryProtocol(Protocol):
+
+    def map_to_graphql(self) -> None:
+        ...
+
+    def map_from_graphql(self) -> None:
+        ...
+
     def get_record(self) -> None:
         ...
 
+    def get_record_field(self) -> None:
+        ...
+
+    def retrieve_filtered_records(self) -> None:
+        ...
+
     def update_record(self) -> None:
+        ...
+
+    def update_multiple_records(self) -> None:
+        ...
+
+    def create_registry_record(self) -> None:
+        ...
+
+    def create_or_update_registry_record(self) -> None:
         ...
 
     def delete_record(self) -> None:
@@ -27,7 +49,7 @@ class BaseRegistry:
         self.queries = config['queries']
         self.mutations = config['mutations']
 
-    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict) -> str:
+    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
         default_values_str = " ".join(default_values.values())
         query = f'''
                 mutation {{

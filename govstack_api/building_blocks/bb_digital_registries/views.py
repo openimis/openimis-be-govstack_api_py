@@ -1,6 +1,4 @@
 from django.utils.decorators import method_decorator
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework.decorators import api_view
 from django.http import HttpResponse, JsonResponse
 
 from rest_framework.views import APIView
@@ -10,9 +8,9 @@ from drf_yasg.utils import swagger_auto_schema
 
 from .controllers.check_record_presence_controller import check_record_presence_controller
 from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller, \
-    update_single_record_controller
+    update_single_record_controller, create_single_record_controller, delete_record_controller
 from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer, \
-    CombinedValidatorSerializer, WriteValidatorSerializer
+    CombinedValidatorSerializer, WriteValidatorSerializer, RegistryDeleteSerializer
 
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_request_body,
@@ -58,9 +56,14 @@ class SingleRecordAPI(APIView):
     def post(self, request, registryname, versionnumber):
         serializer = WriteValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            # status, registry_record =
-            pass
-        return HttpResponse(status=204)  # 204 No Content
+            status_code, registry_record = create_single_record_controller(
+                request, serializer.data, registryname, versionnumber
+            )
+            if status_code == 200:
+                return Response(registry_record, status=status.HTTP_200_OK)
+            else:
+                return Response(serializer.data, status=status_code)
+        return HttpResponse(status=204)
 
     @swagger_auto_schema(
         operation_description="Updates one existing record in the registry database.",
@@ -82,7 +85,14 @@ class SingleRecordAPI(APIView):
         responses={204: delete_response},
     )
     def delete(self, request, registryname, versionnumber, ID):
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = RegistryDeleteSerializer(data=request.data)
+        if serializer.is_valid():
+            status_code = delete_record_controller(request, serializer.data, registryname, versionnumber)
+            if status_code == 204:
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response(serializer.data, status=status_code)
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 @method_decorator(authenticate_decorator, name='dispatch')

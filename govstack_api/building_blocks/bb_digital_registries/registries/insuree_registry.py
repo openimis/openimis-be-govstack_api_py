@@ -19,16 +19,12 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
         if not fetched_fields:
             fetched_fields = self.create_fetched_fields(mapped_data)
         mapped_data.pop('jsonExt', None)
-        mapped_data = self.insuree_encode_id(mapped_data)
+        mapped_data = self.encode_id(mapped_data, "Insuree")
         arguments_with_values = self.create_arguments_with_values(mapped_data)
         query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
         result = self.client.execute_query(query)
-        registry_data = self.extract_insuree_records(result, self.queries['get'], only_first)
+        registry_data = self.extract_records(result, self.queries['get'], only_first)
         return registry_data
-
-    def read_record(self, mapped_data, only_first=True):
-        # it can be function above without common part
-        pass
 
     def get_record_field(self, mapped_data, field=None, extension=None):
         insuree_data = self.get_record(mapped_data, field)
@@ -39,27 +35,46 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
         return self.get_record(mapped_data, only_first=False)
 
     def manage_registry_record(self, mutation_name, mapped_data_query, mapped_data_write=None):
-        insuree_uuid = self.extract_uuid(mapped_data_query)
-        if insuree_uuid:
-            data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
+        data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
+        if "uuid" not in mapped_data_query:
+            insuree_uuid = self.extract_uuid(mapped_data_query)
+            if not insuree_uuid:
+                return 404
             data_to_write["uuid"] = insuree_uuid
-            default_data_values = self.get_required_data_for_mutation(data_to_write)
-            arguments_with_values = self.create_arguments_with_values(data_to_write)
-            query = self.get_mutation(
-                mutation_name=mutation_name,
-                arguments_with_values=arguments_with_values,
-                default_values=default_data_values
-            )
-            self.client.execute_query(query)
-            return 200
-        else:
-            return 404
+        default_data_values = self.get_required_data_for_mutation(data_to_write)
+        arguments_with_values = self.create_arguments_with_values(data_to_write)
+        query = self.get_mutation(
+            mutation_name=mutation_name,
+            arguments_with_values=arguments_with_values,
+            default_values=default_data_values
+        )
+        self.client.execute_query(query)
+        return 200
 
     def update_registry_record(self, mapped_data_query, mapped_data_write=None):
         return self.manage_registry_record(self.mutations['update'], mapped_data_query, mapped_data_write)
 
     def create_registry_record(self, mapped_data):
-        return self.manage_registry_record(self.mutations['update'], mapped_data)
+        self.manage_registry_record(self.mutations['create'], mapped_data)
+        return self.get_record(mapped_data)
+
+    def update_multiple_records(self, mapped_data):
+        insuree_uuids = self.extract_uuids(mapped_data, first=False)
+        for insuree_uuid in insuree_uuids:
+            # For each UUID, we update the corresponding record with the mapped_data
+            self.update_registry_record({**mapped_data, "uuid": insuree_uuid})
+
+    def delete_registry_record(self, mapped_data):
+        insuree_uuid = self.extract_uuid(mapped_data)
+        if insuree_uuid:
+            query = self.get_mutation(
+                mutation_name=self.mutations['delete'],
+                arguments_with_values={f'uuids:[{insuree_uuid}]'},
+            )
+            self.client.execute_query(query)
+            return 204
+        else:
+            return 404
 
     def create_or_update_registry_record(self, mapped_data):
         insuree_uuid = self.get_record_field(self, mapped_data, "uuid", "string")
@@ -107,8 +122,6 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
 
         return mapped_data
 
-    def extract_insuree_records(self, result, query_get, only_first=True):
-        return self.extract_records(result, query_get, only_first)
 
     def extract_uuid(self, mapped_data_query):
         insuree_uuid_json = self.get_record_field(mapped_data=mapped_data_query, field="uuid", extension="json")
@@ -118,8 +131,6 @@ class InsureeRegistry(BaseRegistry, RegistryProtocol):
         else:
             return None
 
-    def insuree_encode_id(self, mapped_data):
-        return self.encode_id(mapped_data, "Insuree")
 
     def get_required_data_for_mutation(self, mapped_data: dict) -> dict:
         """

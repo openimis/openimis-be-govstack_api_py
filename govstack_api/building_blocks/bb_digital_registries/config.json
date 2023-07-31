@@ -18,7 +18,7 @@
       },
       "mutations": {
         "create": "createInsuree",
-        "delete": "deleteInsuree",
+        "delete": "deleteInsurees",
         "update": "updateInsuree"
       },
       "query": {

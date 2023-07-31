@@ -37,4 +37,19 @@ def update_single_record_controller(request, validated_data, registryname, versi
 
 
 def create_single_record_controller(request, validated_data, registryname, versionnumber):
-    pass
+    factory = RegistryFactory()
+    registry = factory.get_registry(registryname, versionnumber, request)
+    mapped_data = registry.map_to_graphql(validated_data['write'])
+    registry_record = registry.create_registry_record(mapped_data)
+    if registry_record:
+        return 200, registry_record
+    else:
+        return 404, {}
+
+
+def delete_record_controller(request, validated_data, registryname, versionnumber):
+    factory = RegistryFactory()
+    registry = factory.get_registry(registryname, versionnumber, request)
+    mapped_data = registry.map_to_graphql(validated_data)
+    return registry.delete_registry_record(mapped_data)
+
