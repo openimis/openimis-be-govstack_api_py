@@ -153,10 +153,11 @@ class BaseRegistry:
                 formatted_value = value.replace('"', '\\"')
                 arguments.append(f'{field}: "{formatted_value}"')
             elif field == 'id':
-                try:
-                    value = int(value)
-                    arguments.append(f'{field}: {value}')
-                except ValueError:
+                # Due to the fact that the input can be presented either as a plain integer or as an encoded string,
+                # it is necessary to implement dual handling mechanisms to accommodate these variations.
+                if value.isdigit():
+                    arguments.append(f'{field}: {int(value)}')
+                else:
                     arguments.append(f'{field}: "{value}"')
             else:
                 arguments.append(f'{field}: "{value}"')
