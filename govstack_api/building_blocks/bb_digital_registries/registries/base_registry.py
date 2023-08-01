@@ -62,6 +62,23 @@ class BaseRegistry:
         registry_data = self.extract_records(result, self.queries['get'], only_first)
         return registry_data
 
+    def manage_registry_record(self, mutation_name, mapped_data_query, mapped_data_write=None):
+        data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
+        if "uuid" not in mapped_data_query:
+            record_uuid = self.extract_uuid(mapped_data_query)
+            if not record_uuid:
+                return 404
+            data_to_write["uuid"] = record_uuid
+        default_data_values = self.get_required_data_for_mutation(data_to_write)
+        arguments_with_values = self.create_arguments_with_values(data_to_write)
+        query = self.get_mutation(
+            mutation_name=mutation_name,
+            arguments_with_values=arguments_with_values,
+            default_values=default_data_values
+        )
+        self.client.execute_query(query)
+        return 200
+
     def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
         default_values_str = " ".join(default_values.values())
         query = f'''

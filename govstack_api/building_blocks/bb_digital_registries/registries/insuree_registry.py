@@ -22,23 +22,6 @@ class InsureeRegistry(BaseRegistry, RegistryType):
     def retrieve_filtered_records(self, mapped_data):
         return self.get_record(mapped_data, only_first=False)
 
-    def manage_registry_record(self, mutation_name, mapped_data_query, mapped_data_write=None):
-        data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
-        if "uuid" not in mapped_data_query:
-            insuree_uuid = self.extract_uuid(mapped_data_query)
-            if not insuree_uuid:
-                return 404
-            data_to_write["uuid"] = insuree_uuid
-        default_data_values = self.get_required_data_for_mutation(data_to_write)
-        arguments_with_values = self.create_arguments_with_values(data_to_write)
-        query = self.get_mutation(
-            mutation_name=mutation_name,
-            arguments_with_values=arguments_with_values,
-            default_values=default_data_values
-        )
-        self.client.execute_query(query)
-        return 200
-
     def update_registry_record(self, mapped_data_query, mapped_data_write=None):
         return self.manage_registry_record(self.mutations['update'], mapped_data_query, mapped_data_write)
 
