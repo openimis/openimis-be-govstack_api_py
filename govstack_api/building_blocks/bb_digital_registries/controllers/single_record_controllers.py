@@ -8,7 +8,9 @@ def read_single_record_controller(request, validated_data, registryname, version
     mapped_data = registry.map_to_graphql(validated_data)
     registry_record = registry.get_record(mapped_data)
     if registry_record:
+        print("controller")
         registry_record = registry.map_from_graphql(registry_record)
+        print("controller")
         return 200, registry_record
     else:
         return 404, {}
@@ -30,7 +32,7 @@ def get_single_record_field_controller(request, validated_data, registryname, ve
     registry = factory.get_registry(registryname, versionnumber, request)
     mapped_data = registry.map_to_graphql(validated_data)
     registry_record_field = registry.get_record_field(
-        mapped_data, validated_data, validated_data['field'], validated_data['ext']
+        mapped_data, field=validated_data['field'], extension=validated_data['ext']
     )
     if registry_record_field:
         return 200, registry_record_field

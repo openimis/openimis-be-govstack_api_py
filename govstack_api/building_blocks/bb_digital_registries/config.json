@@ -12,7 +12,7 @@
       "default_values": {
         "family_id": "familyId: 1",
         "gender_id": "genderId: \"U\"",
-        "dob": "1920-04-02",
+        "dob": "dob: \"1920-04-02\"",
         "head": "head: false",
         "card_issued": "cardIssued: false"
       },

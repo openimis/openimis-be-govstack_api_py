@@ -8,4 +8,4 @@ class TestHarnessApiConfig(AppConfig):
 
     IM_CLIENT = os.getenv('IM_CLIENT', None)
 
-    date_of_birth = '1920-04-02'
+    # date_of_birth = 'dob: "1920-04-02"'

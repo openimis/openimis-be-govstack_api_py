@@ -74,7 +74,6 @@ class InsureeRegistry(BaseRegistry, RegistryType):
     def map_from_graphql(self, graphql_data):
         mapped_data = {}
         json_ext = {}
-
         # We need to reverse the fields_mapping dictionary for map_from_graphql
         reversed_fields_mapping = {v: k for k, v in self.fields_mapping.items()}
 
@@ -84,20 +83,23 @@ class InsureeRegistry(BaseRegistry, RegistryType):
                 mapped_data[http_field] = value
             elif graphql_field == 'jsonExt':
                 if value is not None:
-                    json_ext = json.loads(value)
+                    try:
+                        value = json.loads(value)  # First decoding
+                        json_ext = json.loads(value)  # Second decoding
+                    except json.JSONDecodeError as e:
+                        print(f"Cannot decode value: {value}. Error: {e}")
+                        json_ext = {}
                 else:
                     json_ext = {}
-
-        for special_field in ['BirthCertificateID', 'PersonalData']:
+        for special_field in self.special_fields:
             if special_field in json_ext:
                 mapped_data[special_field] = json_ext[special_field]
 
         return mapped_data
 
     def extract_uuid(self, mapped_data_query):
-        insuree_uuid_json = self.get_record_field(mapped_data=mapped_data_query, field="uuid", extension="json")
-        if insuree_uuid_json != 'null':
-            insuree_uuid_dict = json.loads(insuree_uuid_json)
+        insuree_uuid_dict = self.get_record_field(mapped_data=mapped_data_query, field="uuid", extension="json")
+        if insuree_uuid_dict != 'null':
             return insuree_uuid_dict.get('uuid')
         else:
             return None

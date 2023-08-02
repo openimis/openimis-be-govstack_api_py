@@ -33,6 +33,7 @@ class InformationMediatorMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        print(request.headers)
         if request.headers.get('Information-Mediator-Client', None):
             config = apps.get_app_config('govstack_api')
             im_client = config.IM_CLIENT
@@ -73,7 +74,13 @@ class InformationMediatorMiddleware:
           }}
           '''
         context = self.get_context(request)
-        result = client.execute(mutation, context=context)
+        try:
+            result = client.execute(mutation, context=context)
+            print(result)  # Add this line to inspect the result
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+            return None
+
         if 'data' in result and 'tokenAuth' in result['data'] and 'token' in result['data']['tokenAuth']:
             token = result['data']['tokenAuth']['token']
             if token:

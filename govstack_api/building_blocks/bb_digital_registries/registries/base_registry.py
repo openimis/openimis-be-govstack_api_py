@@ -58,7 +58,9 @@ class BaseRegistry:
         mapped_data = self.encode_id(mapped_data, self.model)
         arguments_with_values = self.create_arguments_with_values(mapped_data)
         query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
+        print(query)
         result = self.client.execute_query(query)
+        print(result)
         registry_data = self.extract_records(result, self.queries['get'], only_first)
         return registry_data
 
@@ -71,15 +73,19 @@ class BaseRegistry:
             data_to_write["uuid"] = record_uuid
         default_data_values = self.get_required_data_for_mutation(data_to_write)
         arguments_with_values = self.create_arguments_with_values(data_to_write)
+        print(data_to_write)
+        print("default_data_values", default_data_values)
         query = self.get_mutation(
             mutation_name=mutation_name,
             arguments_with_values=arguments_with_values,
             default_values=default_data_values
         )
-        self.client.execute_query(query)
+        print(query)
+        response = self.client.execute_query(query)
         return 200
 
     def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
+        print(default_values)
         default_values_str = " ".join(default_values.values())
         query = f'''
                 mutation {{
@@ -120,10 +126,17 @@ class BaseRegistry:
             mapped_data['id'] = base64.b64encode(f"{model_name}:{id_value}".encode()).decode()
         return mapped_data
 
+    def decode_id(self, encoded_id):
+        decoded_string = base64.b64decode(encoded_id).decode()
+        model_name, id_value = decoded_string.split(":")
+        return id_value
+
     def extract_records(self, result, query_get, only_first=True):
         edges = result.get('data', {}).get(f'{query_get}', {}).get('edges', [])
         records = [edge.get('node', {}) for edge in edges]
-
+        for record in records:
+            if 'id' in record:
+                record['id'] = self.decode_id(record['id'])
         if records:
             return records[0] if only_first else records
         else:
@@ -138,7 +151,7 @@ class BaseRegistry:
 
     def change_result_extension(self, data, extension):
         if extension == 'json':
-            return json.dumps(data)
+            return data
         elif extension == 'string':
             return str(data)
         elif extension == 'xml':
