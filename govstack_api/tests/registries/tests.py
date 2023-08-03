@@ -7,6 +7,8 @@ from govstack_api.tests.registries.helpers import (
 )
 from django.apps import apps
 
+from insuree.models import Insuree
+
 config = apps.get_app_config('govstack_api')
 
 
@@ -76,7 +78,7 @@ class ApiUrlsTests(TestCase):
         data = {
             "query": {
                 "content": {
-                    "ID": "5555",
+                    "ID": "53125",
                     "FirstName": "Othy",
                     "LastName": "Lewiss",
                     "BirthCertificateID": "B12DC3",
@@ -121,11 +123,74 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        print(self.insuree.__dict__)
+        response = self.client.put(url, data, content_type='application/json', **self.headers)
+        self.assertEqual(response.status_code, second=200)
+
+    def test_registry_record_update_bad_request(self):
+        url = reverse('update_registry_record', kwargs={'registryname': 'registryname', 'versionnumber': '111'})
+        data = {
+            "find": {
+                "content": {
+                    "ID": "2007",
+                    "FirstName": "Othy",
+                    "LastName": "Lewiss",
+                }
+            },
+            "save": {
+                "content": {
+                    "ID": "2007",
+                    "FirstName": "Othy",
+                    "LastName": "LewissAAA",
+                }
+            }
+        }
+        data = json.dumps(data)
         response = self.client.put(url, data, content_type='application/json', **self.headers)
         self.insuree.save()
-        print(self.insuree.last_name)
-        print(self.insuree.last_name)
-        print(self.insuree.last_name)
-        print(self.insuree.last_name)
+        self.assertEqual(response.status_code, second=400)
+
+    def test_registry_record_create_succesful(self):
+        url = reverse('create_registry_record', kwargs={'registryname': 'registryname', 'versionnumber': '111'})
+        data = {
+            "write": {
+                "content": {
+                    "ID": "332012",
+                    "FirstName": "JOHN",
+                    "LastName": "PAYLO",
+                    "BirthCertificateID": "B12DC3",
+                    "PersonalData": {"some": "data"}
+                }
+            }
+        }
+        data = json.dumps(data)
+        response = self.client.post(url, data, content_type='application/json', **self.headers)
         self.assertEqual(response.status_code, second=200)
+
+    def test_registry_record_update_or_create_successful(self):
+        url = reverse('update_or_create_registry_record', kwargs={'registryname': 'registryname', 'versionnumber': '111'})
+        data = {
+            "query": {
+                "content": {
+                    "ID": "2007",
+                    "FirstName": "Othy",
+                    "LastName": "Lewiss",
+                }
+            },
+            "write": {
+                "content": {
+                    "ID": "2007",
+                    "FirstName": "Othy",
+                    "LastName": "New_Last_Name",
+                }
+            }
+        }
+        data = json.dumps(data)
+        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        self.assertEqual(response.status_code, second=200)
+
+    def test_registry_record_delete_succesful(self):
+        url = reverse('delete_registry_record', kwargs={'registryname': 'registryname', 'versionnumber': '111', "ID": "2007"})
+        response = self.client.delete(url, data={}, content_type='application/json', **self.headers)
+        print(Insuree.objects.get(id=2007))
+        self.assertEqual(response.status_code, second=204)
+

@@ -119,6 +119,6 @@ def create_test_insuree(
                 setattr(family, k, v)
         family.save()
 
-    print(insuree)
+    insuree.save()
     return insuree
 

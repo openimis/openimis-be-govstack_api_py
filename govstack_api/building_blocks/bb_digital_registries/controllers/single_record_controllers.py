@@ -8,9 +8,7 @@ def read_single_record_controller(request, validated_data, registryname, version
     mapped_data = registry.map_to_graphql(validated_data)
     registry_record = registry.get_record(mapped_data)
     if registry_record:
-        print("controller")
         registry_record = registry.map_from_graphql(registry_record)
-        print("controller")
         return 200, registry_record
     else:
         return 404, {}
@@ -52,7 +50,7 @@ def update_single_record_controller(request, validated_data, registryname, versi
 def create_single_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request)
-    mapped_data = registry.map_to_graphql(validated_data['write'])
+    mapped_data = registry.map_to_graphql(validated_data)
     registry_record = registry.create_registry_record(mapped_data)
     if registry_record:
         return 200, registry_record
@@ -63,8 +61,9 @@ def create_single_record_controller(request, validated_data, registryname, versi
 def create_or_update_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request)
-    mapped_data = registry.map_to_graphql(validated_data)
-    registry_record = registry.create_or_update_registry_record(mapped_data)
+    mapped_data_query = registry.map_to_graphql(validated_data['query'])
+    mapped_data_write = registry.map_to_graphql(validated_data['write'])
+    registry_record = registry.create_or_update_registry_record(mapped_data_query, mapped_data_write)
     if registry_record:
         registry_record = registry.map_from_graphql(registry_record)
         return 200, registry_record

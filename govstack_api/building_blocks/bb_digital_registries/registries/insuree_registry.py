@@ -22,7 +22,11 @@ class InsureeRegistry(BaseRegistry, RegistryType):
     def retrieve_filtered_records(self, mapped_data):
         return self.get_record(mapped_data, only_first=False)
 
-    def update_registry_record(self, mapped_data_query, mapped_data_write=None):
+    def update_registry_record(self, mapped_data_query, mapped_data_write={}):
+        if "uuid" not in mapped_data_write:
+            record_uuid = self.extract_uuid(mapped_data_query)
+            if record_uuid:
+                mapped_data_write["uuid"] = record_uuid
         return self.manage_registry_record(self.mutations['update'], mapped_data_query, mapped_data_write)
 
     def create_registry_record(self, mapped_data):
@@ -40,25 +44,24 @@ class InsureeRegistry(BaseRegistry, RegistryType):
         if insuree_uuid:
             query = self.get_mutation(
                 mutation_name=self.mutations['delete'],
-                arguments_with_values={f'uuids:[{insuree_uuid}]'},
+                arguments_with_values=f'''uuids: {json.dumps([insuree_uuid])}''',
             )
             self.client.execute_query(query)
             return 204
         else:
             return 404
 
-    def create_or_update_registry_record(self, mapped_data):
-        insuree_uuid = self.get_record_field(self, mapped_data, "uuid", "string")
-        if insuree_uuid:
-            self.update_registry_record(mapped_data)
+    def create_or_update_registry_record(self, mapped_data_query, mapped_data_write):
+        insuree_uuid = self.get_record_field(mapped_data_query, field="uuid", extension="string")
+        if insuree_uuid != "None":
+            self.update_registry_record(mapped_data_query, mapped_data_write)
         else:
-            self.create_registry_record(mapped_data)
-        return self.get_record(mapped_data)
+            self.create_registry_record(mapped_data_write)
+        return self.get_record(mapped_data_write)
 
     def map_to_graphql(self, validated_data):
         mapped_data = {}
         json_ext = {}
-
         for http_field, value in validated_data.items():
             if http_field in self.fields_mapping:
                 graphql_field = self.fields_mapping[http_field]
@@ -68,7 +71,6 @@ class InsureeRegistry(BaseRegistry, RegistryType):
 
         if json_ext:
             mapped_data['jsonExt'] = json.dumps(json_ext)
-
         return mapped_data
 
     def map_from_graphql(self, graphql_data):
@@ -99,7 +101,7 @@ class InsureeRegistry(BaseRegistry, RegistryType):
 
     def extract_uuid(self, mapped_data_query):
         insuree_uuid_dict = self.get_record_field(mapped_data=mapped_data_query, field="uuid", extension="json")
-        if insuree_uuid_dict != 'null':
+        if insuree_uuid_dict and insuree_uuid_dict != 'null':
             return insuree_uuid_dict.get('uuid')
         else:
             return None

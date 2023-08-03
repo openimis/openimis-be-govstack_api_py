@@ -55,38 +55,31 @@ class BaseRegistry:
         if not fetched_fields:
             fetched_fields = self.create_fetched_fields(mapped_data)
         mapped_data.pop('jsonExt', None)
-        mapped_data = self.encode_id(mapped_data, self.model)
+        # mapped_data = self.encode_id(mapped_data, self.model)
         arguments_with_values = self.create_arguments_with_values(mapped_data)
         query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
-        print(query)
         result = self.client.execute_query(query)
-        print(result)
         registry_data = self.extract_records(result, self.queries['get'], only_first)
         return registry_data
 
     def manage_registry_record(self, mutation_name, mapped_data_query, mapped_data_write=None):
         data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
-        if "uuid" not in mapped_data_query:
-            record_uuid = self.extract_uuid(mapped_data_query)
-            if not record_uuid:
-                return 404
-            data_to_write["uuid"] = record_uuid
+
         default_data_values = self.get_required_data_for_mutation(data_to_write)
         arguments_with_values = self.create_arguments_with_values(data_to_write)
-        print(data_to_write)
-        print("default_data_values", default_data_values)
         query = self.get_mutation(
             mutation_name=mutation_name,
             arguments_with_values=arguments_with_values,
             default_values=default_data_values
         )
-        print(query)
-        response = self.client.execute_query(query)
+        self.client.execute_query(query)
         return 200
 
-    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
-        print(default_values)
-        default_values_str = " ".join(default_values.values())
+    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = {}) -> str:
+        if default_values:
+            default_values_str = " ".join(default_values.values())
+        else:
+            default_values_str = ""
         query = f'''
                 mutation {{
                     {mutation_name}(
@@ -123,7 +116,7 @@ class BaseRegistry:
     def encode_id(self, mapped_data, model_name):
         if 'id' in mapped_data:
             id_value = mapped_data['id']
-            mapped_data['id'] = base64.b64encode(f"{model_name}:{id_value}".encode()).decode()
+            mapped_data['id'] = base64.b64encode(f"{id_value}".encode()).decode()
         return mapped_data
 
     def decode_id(self, encoded_id):
