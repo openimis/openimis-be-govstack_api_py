@@ -57,7 +57,7 @@ def create_interactive_user_from_data(
     password = os.getenv('password_openIMIS')
 
     if roles is None:
-        roles = [3, 7]
+        roles = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     if username is None:
         username = other_names
 
@@ -90,17 +90,15 @@ def create_test_insuree(
             audit_user_id=-1,
             **(family_custom_props if family_custom_props else {})
         )
-
     else:
         family = None
 
     insuree = Insuree.objects.create(
         **{
-            "last_name": "Lewiss",
-            "id": 2007,
-            "uuid": "93882137-25dc-4447-a648-6c598e0d4985",
-            "other_names": "Othy",
-            "chf_id": "2007",
+            "last_name": last_name,
+            "id": insuree_id,
+            "other_names": other_names,
+            "chf_id": str(insuree_id),
             "family": Family.objects.get(id=1),
             "gender": Gender.objects.get(code='M'),
             "dob": "1920-04-02",

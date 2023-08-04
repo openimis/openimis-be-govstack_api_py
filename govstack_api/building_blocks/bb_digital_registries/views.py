@@ -170,25 +170,31 @@ class MultipleRecordAPI(APIView):
         operation_description="Get records from the registry database.",
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
-    def get(self, request, registryname, versionnumber, search, filter, ordering, page, fieldname):
+    def get(self, request, registryname, versionnumber):
+        search = request.query_params.get('search')
+        filter = request.query_params.get('filter')
+        ordering = request.query_params.get('ordering')
+        page = request.query_params.get('page')
+        fieldname = request.query_params.get('query.<fieldname>')
+        page_size = request.query_params.get('page_size')
         serializer = MultipleRecordsSerializer(data={
-            {
-                'request': request,
-                'registryname': registryname,
-                'versionnumber': versionnumber,
-                'search': search,
-                'filter': filter,
-                'ordering': ordering,
-                'page': page,
-                'fieldname': fieldname
-            }
+            'registryname': registryname,
+            'versionnumber': versionnumber,
+            'search': search,
+            'filter': filter,
+            'ordering': ordering,
+            'page': page,
+            'page_size': page_size,
+            'fieldname': fieldname
         })
         if serializer.is_valid():
             status_code, list_of_records = get_list_of_records_controller(
-                request, serializer.data, registryname, versionnumber
+                request, serializer.data, registryname, versionnumber,
             )
-            # put code here
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+
+            return Response(list_of_records, status=status_code)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_description='Updates multiple records in the registry database that match the input query.',
@@ -198,7 +204,7 @@ class MultipleRecordAPI(APIView):
     def put(self, request, registryname, versionnumber):
         serializer = CombinedValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            status_code, registry_records = update_multiple_records_controller(
+            status_code = update_multiple_records_controller(
                 request, serializer.data, registryname, versionnumber
             )
             if status_code == 200:

@@ -19,7 +19,7 @@ class RegistryType(Protocol):
     def get_record_field(self) -> None:
         ...
 
-    def retrieve_filtered_records(self) -> None:
+    def retrieve_filtered_records(self, mapped_data, page, page_size) -> None:
         ...
 
     def update_record(self) -> None:
@@ -50,13 +50,19 @@ class BaseRegistry:
         self.queries = config['queries']
         self.mutations = config['mutations']
 
-    def get_record(self, mapped_data, fetched_fields=None, only_first=True):
+    def get_record(self, mapped_data, fetched_fields=None, only_first=True, after_cursor=None, first=5):
         # workaround because for now we lack on filtering json_ext
         if not fetched_fields:
-            fetched_fields = self.create_fetched_fields(mapped_data)
+            fetched_fields = ' '.join(self.fields_mapping.values())
+        elif isinstance(fetched_fields, list):
+            fetched_fields = ', '.join(fetched_fields)
         mapped_data.pop('jsonExt', None)
-        # mapped_data = self.encode_id(mapped_data, self.model)
         arguments_with_values = self.create_arguments_with_values(mapped_data)
+
+        if first:
+            arguments_with_values += f" first:{first}"
+        if after_cursor:
+            arguments_with_values = f"after: {after_cursor}"
         query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
         result = self.client.execute_query(query)
         registry_data = self.extract_records(result, self.queries['get'], only_first)
@@ -101,7 +107,10 @@ class BaseRegistry:
         return f'''
                 query {{
                     {query_name}({arguments_with_variables}) {{
+                    totalCount
+                    pageInfo {{ hasNextPage, endCursor }}
                         edges{{
+                            cursor
                             node{{
                                 {fetched_fields}
                             }}
@@ -109,9 +118,6 @@ class BaseRegistry:
                     }}
                 }}
                 '''
-
-    def create_fetched_fields(self, mapped_data) -> str:
-        return ', '.join(mapped_data.keys())
 
     def encode_id(self, mapped_data, model_name):
         if 'id' in mapped_data:
