@@ -45,12 +45,9 @@ def create_default_registry(registry_name=None, version=None, class_name=None, m
 def create_interactive_user_from_data(
         user_id,
         user_uuid,
-        username=None,
         other_names=None,
         last_name=None,
-        birth_certificate_id=None,
-        roles=None,
-        custom_props=None
+        roles=None
 ):
     username = os.getenv('login_openIMIS')
     password = os.getenv('password_openIMIS')

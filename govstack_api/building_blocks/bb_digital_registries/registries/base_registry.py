@@ -7,16 +7,16 @@ from xml.dom import minidom
 
 class RegistryType(Protocol):
 
-    def map_to_graphql(self) -> None:
+    def map_to_graphql(self, validated_data) -> None:
         ...
 
-    def map_from_graphql(self) -> None:
+    def map_from_graphql(self, graphql_data) -> None:
         ...
 
     def get_record(self) -> None:
         ...
 
-    def get_record_field(self) -> None:
+    def get_record_field(self, mapped_data, field=None, extension=None) -> None:
         ...
 
     def retrieve_filtered_records(self, mapped_data, page, page_size) -> None:
@@ -25,10 +25,10 @@ class RegistryType(Protocol):
     def update_record(self) -> None:
         ...
 
-    def update_multiple_records(self) -> None:
+    def update_multiple_records(self, mapped_data_query: dict = {}, mapped_data_write: dict = {}) -> int:
         ...
 
-    def create_registry_record(self) -> None:
+    def create_registry_record(self, mapped_data) -> None:
         ...
 
     def create_or_update_registry_record(self) -> None:
@@ -129,7 +129,7 @@ class BaseRegistry:
 
     def decode_id(self, encoded_id):
         decoded_string = base64.b64decode(encoded_id).decode()
-        model_name, id_value = decoded_string.split(":")
+        _, id_value = decoded_string.split(":")
         return id_value
 
     def extract_records(self, result, query_get, only_first=True):

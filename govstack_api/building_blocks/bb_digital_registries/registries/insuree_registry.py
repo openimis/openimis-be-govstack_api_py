@@ -14,12 +14,15 @@ class InsureeRegistry(BaseRegistry, RegistryType):
         super().__init__(registry_config, request)
         self.client = GrapheneClient(request, Query, Mutation)
 
-    def get_record_field(self, mapped_data, field=None, extension=None, only_first=True):
+    def get_record_field(self, mapped_data=None, field=None, extension=None, only_first=True):
         insuree_data = self.get_record(mapped_data, field, only_first=only_first)
         insuree_data = self.change_result_extension(insuree_data, extension)
         return insuree_data
 
-    def retrieve_filtered_records(self, mapped_data, page, page_size, ordering=None):
+    def retrieve_filtered_records(
+            self, mapped_data: dict = None, page: int = None,
+            page_size: int = None, ordering=None
+    ):
         after_cursor = None
         previous_cursor = None
         response_data = {
@@ -57,8 +60,8 @@ class InsureeRegistry(BaseRegistry, RegistryType):
 
         return response_data
 
-    def update_registry_record(self, mapped_data_query, mapped_data_write={}):
-        if "uuid" not in mapped_data_write:
+    def update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):
+        if mapped_data_write and "uuid" not in mapped_data_write:
             record_uuid = self.extract_uuid(mapped_data_query)
             if record_uuid:
                 mapped_data_write["uuid"] = record_uuid
@@ -68,7 +71,7 @@ class InsureeRegistry(BaseRegistry, RegistryType):
         self.manage_registry_record(self.mutations['create'], mapped_data)
         return self.get_record(mapped_data)
 
-    def update_multiple_records(self, mapped_data_query: dict, mapped_data_write: dict) -> int:
+    def update_multiple_records(self, mapped_data_query: dict = None, mapped_data_write: dict = None) -> int:
         records = self.get_record(
             mapped_data=mapped_data_query,
             fetched_fields=['lastName', 'otherNames', 'id', 'chfId', 'uuid'],
@@ -91,7 +94,7 @@ class InsureeRegistry(BaseRegistry, RegistryType):
         else:
             return 404
 
-    def create_or_update_registry_record(self, mapped_data_query, mapped_data_write):
+    def create_or_update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):
         insuree_uuid = self.get_record_field(mapped_data_query, field="uuid", extension="string")
         if insuree_uuid != "None":
             self.update_registry_record(mapped_data_query, mapped_data_write)
