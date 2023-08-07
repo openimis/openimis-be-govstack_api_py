@@ -11,7 +11,7 @@ from .controllers.single_record_controllers import read_single_record_controller
     update_single_record_controller, create_single_record_controller, delete_record_controller, \
     create_or_update_record_controller, check_record_presence_controller
 from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer, \
-    CombinedValidatorSerializer, WriteValidatorSerializer, RegistryDeleteSerializer
+    CombinedValidatorSerializer, WriteValidatorSerializer, RegistryDeleteSerializer, AlwaysValidSerializer
 
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_request_body,
@@ -129,7 +129,7 @@ class CheckRecordPresenceView(APIView):
         responses={200: exists_response_body},
     )
     def post(self, request, registryname, versionnumber):
-        serializer = QueryValidatorSerializer(data=request.data)
+        serializer = AlwaysValidSerializer(data=request.data)
         if serializer.is_valid():
             status_code, record_exists = check_record_presence_controller(
                 request, serializer.data, registryname, versionnumber

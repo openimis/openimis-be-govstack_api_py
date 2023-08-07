@@ -53,6 +53,13 @@ class QueryValidatorSerializer(serializers.Serializer):
         fields = ['query']
 
 
+class AlwaysValidSerializer(serializers.Serializer):
+    data = serializers.DictField()
+
+    def is_valid(self, raise_exception=False):
+        return True
+
+
 class WriteValidatorSerializer(serializers.Serializer):
     write = ContentValidatorSerializer()
 
