@@ -15,15 +15,16 @@ config = apps.get_app_config('govstack_api')
 
 class ApiUrlsTests(TestCase):
     def setUp(self):
+        self.content_type = 'application/json'
         self.client = Client()
         self.headers = {
-            'HTTP_ACCEPT': 'application/json',
-            'CONTENT_TYPE': 'application/json',
+            'HTTP_ACCEPT': self.content_type,
+            'CONTENT_TYPE': self.content_type,
             'HTTP_INFORMATION_MEDIATOR_CLIENT': config.IM_CLIENT,
         }
         self.registry = create_default_registry()
         self.user = create_interactive_user_from_data(
-            user_id=2001, user_uuid="3213-d33d-ds22-d11d-d55d", last_name='John', other_names='Johnny'
+            user_uuid="3213-d33d-ds22-d11d-d55d", last_name='John', other_names='Johnny'
         )
         self.insuree = create_test_insuree(
             last_name="Lewiss",
@@ -46,7 +47,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        response = self.client.post(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=200)
         self.assertEqual(response.json()['content'], second={
             "ID": "2007",
@@ -70,7 +71,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        response = self.client.post(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=200)
         self.assertEqual(response.json(), second={'answer': {'status': True, 'message': 'Object found from database'}})
 
@@ -88,7 +89,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        response = self.client.post(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=404)
 
     def test_can_read_specific_field_from_registry_record(self):
@@ -124,7 +125,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.put(url, data, content_type='application/json', **self.headers)
+        response = self.client.put(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(
             first="LewissAAA",
             second=Insuree.objects.filter(last_name="LewissAAA").values_list('last_name', flat=True).first()
@@ -150,7 +151,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.put(url, data, content_type='application/json', **self.headers)
+        response = self.client.put(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=400)
 
     def test_registry_record_create_succesful(self):
@@ -167,7 +168,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        response = self.client.post(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=200)
 
     def test_registry_record_update_or_create_successful(self):
@@ -189,23 +190,23 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.post(url, data, content_type='application/json', **self.headers)
+        response = self.client.post(url, data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=200)
 
     def test_registry_record_delete_succesful(self):
         url = reverse(viewname='delete_registry_record', kwargs={'registryname': 'registryname', 'versionnumber': '111', "ID": "2007"})
-        response = self.client.delete(url, data={}, content_type='application/json', **self.headers)
+        response = self.client.delete(url, data={}, content_type=self.content_type, **self.headers)
         self.assertTrue(Insuree.objects.filter(id=2007, validity_to__isnull=False).exists())
         self.assertEqual(response.status_code, second=204)
 
     def test_registry_records_retrieve_list(self):
-        insuree_first = create_test_insuree(
+        create_test_insuree(
             last_name="John",
             other_names="Max",
             insuree_id=2008,
             json_ext='{"BirthCertificateID": "B12DC3", "PersonalData": {"some": "data"}}'
         )
-        insuree_second = create_test_insuree(
+        create_test_insuree(
             last_name="John",
             other_names="Luap",
             insuree_id=2009,
@@ -229,7 +230,7 @@ class ApiUrlsTests(TestCase):
             'query.<fieldname>': "string"
         })
         url = f"{base_url}?{query_params}"
-        response = self.client.get(url, content_type='application/json', **self.headers)
+        response = self.client.get(url, content_type=self.content_type, **self.headers)
         self.assertEqual(response.data.get('count'), 2)
 
     def test_registry_records_update_sucesful(self):
@@ -268,7 +269,7 @@ class ApiUrlsTests(TestCase):
             }
         }
         data = json.dumps(data)
-        response = self.client.put(url, data=data, content_type='application/json', **self.headers)
+        response = self.client.put(url, data=data, content_type=self.content_type, **self.headers)
         self.assertEqual(response.status_code, second=200)
         self.assertEqual(
             first=2,

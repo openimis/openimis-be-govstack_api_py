@@ -43,7 +43,6 @@ def create_default_registry(registry_name=None, version=None, class_name=None, m
 
 
 def create_interactive_user_from_data(
-        user_id,
         user_uuid,
         other_names=None,
         last_name=None,

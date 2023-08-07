@@ -23,8 +23,16 @@ class GrapheneClient:
         try:
             result = self._client.execute(mutation, context_value=self.context, variables=variables)
             if 'errors' in result:
-                raise Exception(f"GraphQL errors: {result['errors']}")
+                raise GraphQLError(result['errors'])
             return result
-        except Exception as e:
+        except GraphQLError as e:
             print(f"An error occurred during mutation execution: {e}")
             return None
+
+class GraphQLError(Exception):
+    """Exception raised for errors in GraphQL queries or mutations."""
+
+    def __init__(self, errors):
+        self.errors = errors
+        self.message = f"GraphQL errors: {errors}"
+        super().__init__(self.message)
