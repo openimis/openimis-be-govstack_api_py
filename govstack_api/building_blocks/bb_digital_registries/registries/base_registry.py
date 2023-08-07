@@ -53,7 +53,9 @@ class BaseRegistry:
     def get_record(self, mapped_data, fetched_fields=None, only_first=True, after_cursor=None, first=5):
         # workaround because for now we lack on filtering json_ext
         if not fetched_fields:
-            fetched_fields = ' '.join(self.fields_mapping.values())
+            default_fetched_fields = [v for k, v in self.fields_mapping.items() if k != 'uuid']
+            default_fetched_fields.append(" jsonExt")
+            fetched_fields = ' '.join(default_fetched_fields)
         elif isinstance(fetched_fields, list):
             fetched_fields = ', '.join(fetched_fields)
         mapped_data.pop('jsonExt', None)

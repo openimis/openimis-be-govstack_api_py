@@ -19,7 +19,7 @@ class InsureeRegistry(BaseRegistry, RegistryType):
         insuree_data = self.change_result_extension(insuree_data, extension)
         return insuree_data
 
-    def retrieve_filtered_records(self, mapped_data, page, page_size):
+    def retrieve_filtered_records(self, mapped_data, page, page_size, ordering=None):
         after_cursor = None
         previous_cursor = None
         response_data = {
@@ -36,6 +36,12 @@ class InsureeRegistry(BaseRegistry, RegistryType):
                 arguments_with_values += f' first:{page_size}'
             if after_cursor:
                 arguments_with_values += f' after: "{after_cursor}"'
+            if ordering and mapped_data:
+                sort_field = list(mapped_data.keys())[0]
+                order_arg = f'"{sort_field}"'
+                if ordering == 'descending':
+                    order_arg = f'"-{sort_field}"'
+                arguments_with_values += f' orderBy: [{order_arg}]'
             query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
             result = self.client.execute_query(query)
             if not result['data'][self.queries['get']]['edges']:

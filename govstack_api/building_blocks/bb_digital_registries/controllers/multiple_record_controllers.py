@@ -13,7 +13,12 @@ def get_list_of_records_controller(request, validated_data, registryname, versio
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request)
     mapped_data = registry.map_to_graphql({validated_data['filter']:validated_data['search']})
-    registry_records = registry.retrieve_filtered_records(mapped_data, validated_data['page'], validated_data['page_size'])
+    registry_records = registry.retrieve_filtered_records(
+        mapped_data,
+        validated_data['page'],
+        validated_data['page_size'],
+        validated_data['ordering']
+    )
     if registry_records:
         return 200, registry_records
     else:

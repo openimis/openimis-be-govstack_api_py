@@ -49,7 +49,6 @@ def create_interactive_user_from_data(
         other_names=None,
         last_name=None,
         birth_certificate_id=None,
-        password="Test1234",
         roles=None,
         custom_props=None
 ):
@@ -74,7 +73,7 @@ def create_interactive_user_from_data(
     )
     i_user.set_password(password)
     i_user.save()
-    create_or_update_user_roles(i_user, roles, 1)
+    create_or_update_user_roles(i_user, roles, audit_user_id=1)
     return User.objects.create(username=username, i_user=i_user)
 
 

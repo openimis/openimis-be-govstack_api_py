@@ -7,5 +7,3 @@ class TestHarnessApiConfig(AppConfig):
     name = 'govstack_api'
 
     IM_CLIENT = os.getenv('IM_CLIENT', None)
-
-    # date_of_birth = 'dob: "1920-04-02"'
