@@ -73,7 +73,12 @@ class InformationMediatorMiddleware:
           }}
           '''
         context = self.get_context(request)
-        result = client.execute(mutation, context=context)
+        try:
+            result = client.execute(mutation, context=context)
+        except Exception as e:
+            print(f"Exception occurred: {e}")
+            return None
+
         if 'data' in result and 'tokenAuth' in result['data'] and 'token' in result['data']['tokenAuth']:
             token = result['data']['tokenAuth']['token']
             if token:

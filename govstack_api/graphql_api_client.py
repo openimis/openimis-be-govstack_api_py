@@ -12,7 +12,7 @@ class GrapheneClient:
     def get_context(self, request):
         return SimpleNamespace(user=request.user)
 
-    def execute_query(self, query,variables=None):
+    def execute_query(self, query, variables=None):
         if variables is None:
             variables = {}
         return self._client.execute(query, context=self.context, variables=variables)
@@ -20,5 +20,19 @@ class GrapheneClient:
     def execute_mutation(self, mutation, variables=None):
         if variables is None:
             variables = {}
+        try:
+            result = self._client.execute(mutation, context_value=self.context, variables=variables)
+            if 'errors' in result:
+                raise GraphQLError(result['errors'])
+            return result
+        except GraphQLError as e:
+            print(f"An error occurred during mutation execution: {e}")
+            return None
 
-        return self._client.execute(mutation, context_value=self.context, variables=variables)
+class GraphQLError(Exception):
+    """Exception raised for errors in GraphQL queries or mutations."""
+
+    def __init__(self, errors):
+        self.errors = errors
+        self.message = f"GraphQL errors: {errors}"
+        super().__init__(self.message)
