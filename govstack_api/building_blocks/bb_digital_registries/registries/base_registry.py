@@ -7,28 +7,28 @@ from xml.dom import minidom
 
 class RegistryType(Protocol):
 
-    def map_to_graphql(self) -> None:
+    def map_to_graphql(self, validated_data) -> None:
         ...
 
-    def map_from_graphql(self) -> None:
+    def map_from_graphql(self, graphql_data) -> None:
         ...
 
     def get_record(self) -> None:
         ...
 
-    def get_record_field(self) -> None:
+    def get_record_field(self, mapped_data, field=None, extension=None) -> None:
         ...
 
-    def retrieve_filtered_records(self) -> None:
+    def retrieve_filtered_records(self, mapped_data, page, page_size) -> None:
         ...
 
     def update_record(self) -> None:
         ...
 
-    def update_multiple_records(self) -> None:
+    def update_multiple_records(self, mapped_data_query: dict = {}, mapped_data_write: dict = {}) -> int:
         ...
 
-    def create_registry_record(self) -> None:
+    def create_registry_record(self, mapped_data) -> None:
         ...
 
     def create_or_update_registry_record(self) -> None:
@@ -50,13 +50,21 @@ class BaseRegistry:
         self.queries = config['queries']
         self.mutations = config['mutations']
 
-    def get_record(self, mapped_data, fetched_fields=None, only_first=True):
+    def get_record(self, mapped_data, fetched_fields=None, only_first=True, after_cursor=None, first=5):
         # workaround because for now we lack on filtering json_ext
         if not fetched_fields:
-            fetched_fields = self.create_fetched_fields(mapped_data)
+            default_fetched_fields = [v for k, v in self.fields_mapping.items() if k != 'uuid']
+            default_fetched_fields.append(" jsonExt")
+            fetched_fields = ' '.join(default_fetched_fields)
+        elif isinstance(fetched_fields, list):
+            fetched_fields = ', '.join(fetched_fields)
         mapped_data.pop('jsonExt', None)
-        mapped_data = self.encode_id(mapped_data, self.model)
         arguments_with_values = self.create_arguments_with_values(mapped_data)
+
+        if first:
+            arguments_with_values += f" first:{first}"
+        if after_cursor:
+            arguments_with_values = f"after: {after_cursor}"
         query = self.get_single_model_query(self.queries["get"], arguments_with_values, fetched_fields)
         result = self.client.execute_query(query)
         registry_data = self.extract_records(result, self.queries['get'], only_first)
@@ -64,11 +72,7 @@ class BaseRegistry:
 
     def manage_registry_record(self, mutation_name, mapped_data_query, mapped_data_write=None):
         data_to_write = mapped_data_write if mapped_data_write else mapped_data_query
-        if "uuid" not in mapped_data_query:
-            record_uuid = self.extract_uuid(mapped_data_query)
-            if not record_uuid:
-                return 404
-            data_to_write["uuid"] = record_uuid
+
         default_data_values = self.get_required_data_for_mutation(data_to_write)
         arguments_with_values = self.create_arguments_with_values(data_to_write)
         query = self.get_mutation(
@@ -79,8 +83,11 @@ class BaseRegistry:
         self.client.execute_query(query)
         return 200
 
-    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = "") -> str:
-        default_values_str = " ".join(default_values.values())
+    def get_mutation(self, mutation_name: str, arguments_with_values: str, default_values: dict = {}) -> str:
+        if default_values:
+            default_values_str = " ".join(default_values.values())
+        else:
+            default_values_str = ""
         query = f'''
                 mutation {{
                     {mutation_name}(
@@ -102,7 +109,10 @@ class BaseRegistry:
         return f'''
                 query {{
                     {query_name}({arguments_with_variables}) {{
+                    totalCount
+                    pageInfo {{ hasNextPage, endCursor }}
                         edges{{
+                            cursor
                             node{{
                                 {fetched_fields}
                             }}
@@ -111,19 +121,23 @@ class BaseRegistry:
                 }}
                 '''
 
-    def create_fetched_fields(self, mapped_data) -> str:
-        return ', '.join(mapped_data.keys())
-
     def encode_id(self, mapped_data, model_name):
         if 'id' in mapped_data:
             id_value = mapped_data['id']
-            mapped_data['id'] = base64.b64encode(f"{model_name}:{id_value}".encode()).decode()
+            mapped_data['id'] = base64.b64encode(f"{id_value}".encode()).decode()
         return mapped_data
+
+    def decode_id(self, encoded_id):
+        decoded_string = base64.b64decode(encoded_id).decode()
+        _, id_value = decoded_string.split(":")
+        return id_value
 
     def extract_records(self, result, query_get, only_first=True):
         edges = result.get('data', {}).get(f'{query_get}', {}).get('edges', [])
         records = [edge.get('node', {}) for edge in edges]
-
+        for record in records:
+            if 'id' in record:
+                record['id'] = self.decode_id(record['id'])
         if records:
             return records[0] if only_first else records
         else:
@@ -138,7 +152,7 @@ class BaseRegistry:
 
     def change_result_extension(self, data, extension):
         if extension == 'json':
-            return json.dumps(data)
+            return data
         elif extension == 'string':
             return str(data)
         elif extension == 'xml':

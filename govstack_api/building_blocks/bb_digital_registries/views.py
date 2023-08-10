@@ -47,7 +47,7 @@ class SingleRecordAPI(APIView):
                 return Response(registry_record_field, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_description="Create new record",
@@ -64,7 +64,7 @@ class SingleRecordAPI(APIView):
                 return Response(registry_record, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.data, status=status_code)
-        return HttpResponse(status=204)
+        return HttpResponse(status=400)
 
     @swagger_auto_schema(
         operation_description="Updates one existing record in the registry database.",
@@ -78,7 +78,7 @@ class SingleRecordAPI(APIView):
                 return Response(status=status.HTTP_200_OK)
             else:
                 return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_description='Delete record.',
@@ -86,14 +86,18 @@ class SingleRecordAPI(APIView):
         responses={204: delete_response},
     )
     def delete(self, request, registryname, versionnumber, ID):
-        serializer = RegistryDeleteSerializer(data=request.data)
+        serializer = RegistryDeleteSerializer(data={
+            'registryname': registryname,
+            'versionnumber': versionnumber,
+            'ID': ID
+        })
         if serializer.is_valid():
             status_code = delete_record_controller(request, serializer.data, registryname, versionnumber)
             if status_code == 204:
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 @method_decorator(authenticate_decorator, name='dispatch')
@@ -157,7 +161,7 @@ class UpdateOrCreateRecordView(APIView):
                 return Response(registry_record, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class MultipleRecordAPI(APIView):
@@ -166,25 +170,31 @@ class MultipleRecordAPI(APIView):
         operation_description="Get records from the registry database.",
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
-    def get(self, request, registryname, versionnumber, search, filter, ordering, page, fieldname):
+    def get(self, request, registryname, versionnumber):
+        search = request.query_params.get('search')
+        filter = request.query_params.get('filter')
+        ordering = request.query_params.get('ordering')
+        page = request.query_params.get('page')
+        fieldname = request.query_params.get('query.<fieldname>')
+        page_size = request.query_params.get('page_size')
         serializer = MultipleRecordsSerializer(data={
-            {
-                'request': request,
-                'registryname': registryname,
-                'versionnumber': versionnumber,
-                'search': search,
-                'filter': filter,
-                'ordering': ordering,
-                'page': page,
-                'fieldname': fieldname
-            }
+            'registryname': registryname,
+            'versionnumber': versionnumber,
+            'search': search,
+            'filter': filter,
+            'ordering': ordering,
+            'page': page,
+            'page_size': page_size,
+            'fieldname': fieldname
         })
         if serializer.is_valid():
             status_code, list_of_records = get_list_of_records_controller(
-                request, serializer.data, registryname, versionnumber
+                request, serializer.data, registryname, versionnumber,
             )
-            # put code here
-        return HttpResponse(status=204)  # 204 No Content
+
+            return Response(list_of_records, status=status_code)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_description='Updates multiple records in the registry database that match the input query.',
@@ -194,14 +204,14 @@ class MultipleRecordAPI(APIView):
     def put(self, request, registryname, versionnumber):
         serializer = CombinedValidatorSerializer(data=request.data)
         if serializer.is_valid():
-            status_code, registry_records = update_multiple_records_controller(
+            status_code = update_multiple_records_controller(
                 request, serializer.data, registryname, versionnumber
             )
             if status_code == 200:
                 return Response(status=status.HTTP_200_OK)
             else:
                 return Response(status=status_code)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class PersonalDataAPI(APIView):
