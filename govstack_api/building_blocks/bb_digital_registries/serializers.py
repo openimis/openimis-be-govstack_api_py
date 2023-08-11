@@ -24,12 +24,12 @@ class RegistryDeleteSerializer(serializers.Serializer):
 class MultipleRecordsSerializer(serializers.Serializer):
     registryname = serializers.CharField(max_length=100)
     versionnumber = serializers.CharField(max_length=10)
-    search = serializers.CharField(max_length=10)
-    filter = serializers.CharField(max_length=10)
-    ordering = serializers.CharField(max_length=10)
-    page = serializers.IntegerField()
-    page_size = serializers.IntegerField()
-    fieldname = serializers.CharField(max_length=50)
+    search = serializers.CharField(max_length=10, required=False)
+    filter = serializers.CharField(max_length=10, required=False)
+    ordering = serializers.CharField(max_length=10, required=False)
+    page = serializers.IntegerField(required=False)
+    page_size = serializers.IntegerField(required=False)
+    fieldname = serializers.CharField(max_length=50, required=False)
 
     class Meta:
         fields = ['registryname', 'versionnumber', 'search', 'filter', 'ordering', 'page', 'page_size', 'fieldname']

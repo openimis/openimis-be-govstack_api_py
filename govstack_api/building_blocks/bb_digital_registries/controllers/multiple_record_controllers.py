@@ -1,3 +1,4 @@
+from govstack_api.apps import TestHarnessApiConfig
 from govstack_api.building_blocks.bb_digital_registries.registries.registry_factory import RegistryFactory
 
 
@@ -12,12 +13,13 @@ def update_multiple_records_controller(request, validated_data, registryname, ve
 def get_list_of_records_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request)
-    mapped_data = registry.map_to_graphql({validated_data['filter']:validated_data['search']})
+    data = {validated_data.get('filter'): validated_data.get('search')} if validated_data.get('filter') else {}
+    mapped_data = registry.map_to_graphql(data)
     registry_records = registry.retrieve_filtered_records(
         mapped_data,
-        validated_data['page'],
-        validated_data['page_size'],
-        validated_data['ordering']
+        validated_data.get('page', 0),
+        validated_data.get('page_size', TestHarnessApiConfig.default_page_size),
+        validated_data.get('ordering')
     )
     if registry_records:
         return 200, registry_records

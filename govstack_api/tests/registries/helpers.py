@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate
 
 from core.models import InteractiveUser, User
 from core.services import create_or_update_user_roles
-from govstack_api.models import Registry
+from govstack_api.building_blocks.bb_digital_registries.models import Registry
 from insuree.models import Insuree, Family, Gender, InsureePhoto
 
 

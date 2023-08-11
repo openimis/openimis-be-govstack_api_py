@@ -171,22 +171,25 @@ class MultipleRecordAPI(APIView):
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
     def get(self, request, registryname, versionnumber):
-        search = request.query_params.get('search')
-        filter = request.query_params.get('filter')
-        ordering = request.query_params.get('ordering')
-        page = request.query_params.get('page')
-        fieldname = request.query_params.get('query.<fieldname>')
-        page_size = request.query_params.get('page_size')
-        serializer = MultipleRecordsSerializer(data={
+        data = {
             'registryname': registryname,
             'versionnumber': versionnumber,
-            'search': search,
-            'filter': filter,
-            'ordering': ordering,
-            'page': page,
-            'page_size': page_size,
-            'fieldname': fieldname
-        })
+        }
+        if search := request.query_params.get('search'):
+            data['search'] = search
+        if filter := request.query_params.get('filter'):
+            data['filter'] = filter
+        if ordering := request.query_params.get('ordering'):
+            data['ordering'] = ordering
+        if page := request.query_params.get('page'):
+            data['page'] = page
+        if fieldname := request.query_params.get('query.<fieldname>'):
+            data['fieldname'] = fieldname
+        if page_size := request.query_params.get('page_size'):
+            data['page_size'] = page_size
+
+        serializer = MultipleRecordsSerializer(data=data)
+
         if serializer.is_valid():
             status_code, list_of_records = get_list_of_records_controller(
                 request, serializer.data, registryname, versionnumber,

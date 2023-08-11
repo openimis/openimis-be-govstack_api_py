@@ -27,7 +27,8 @@ setup(
         'openimis-be-location',
         'openimis-be-payment',
         'openimis-be-policy',
-        'openimis-be-insuree'
+        'openimis-be-insuree',
+        'drf_yasg==1.21.7'
     ],
     classifiers=[
         'Environment :: Web Environment',

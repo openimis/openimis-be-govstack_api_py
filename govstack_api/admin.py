@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Registry
+from .building_blocks.bb_digital_registries.models import Registry
 
 
 @admin.register(Registry)
