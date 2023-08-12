@@ -6,7 +6,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 
-from .controllers.multiple_record_controllers import update_multiple_records_controller, get_list_of_records_controller
+from .controllers.multiple_record_controllers import update_multiple_records_controller, \
+    ListViewController
 from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller, \
     update_single_record_controller, create_single_record_controller, delete_record_controller, \
     create_or_update_record_controller, check_record_presence_controller
@@ -191,9 +192,9 @@ class MultipleRecordAPI(APIView):
         serializer = MultipleRecordsSerializer(data=data)
 
         if serializer.is_valid():
-            status_code, list_of_records = get_list_of_records_controller(
-                request, serializer.data, registryname, versionnumber,
-            )
+            status_code, list_of_records = ListViewController(
+                request, registryname, versionnumber,
+            ).get_records(serializer.data)
 
             return Response(list_of_records, status=status_code)
         else:

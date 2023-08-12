@@ -5,8 +5,7 @@ def read_single_record_controller(request, validated_data, registryname, version
     # do we want to use a specific serializer?
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data = registry.gql_mapper.map_to_graphql(validated_data)
-    registry_record = registry.get_record(mapped_data)
+    registry_record = registry.get_record(validated_data)
     if registry_record:
         registry_record = registry.gql_mapper.map_from_graphql(registry_record)
         return 200, registry_record
@@ -17,8 +16,7 @@ def read_single_record_controller(request, validated_data, registryname, version
 def check_record_presence_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data = registry.gql_mapper.map_to_graphql(validated_data)
-    registry_record = registry.get_record(mapped_data)
+    registry_record = registry.get_record(validated_data)
     if registry_record:
         return 200, True
     else:
@@ -28,9 +26,8 @@ def check_record_presence_controller(request, validated_data, registryname, vers
 def get_single_record_field_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data = registry.gql_mapper.map_to_graphql(validated_data)
     registry_record_field = registry.get_record_field(
-        mapped_data, field=validated_data['field'], extension=validated_data['ext']
+        validated_data, field=validated_data['field'], extension=validated_data['ext']
     )
     if registry_record_field:
         return 200, registry_record_field
@@ -41,17 +38,14 @@ def get_single_record_field_controller(request, validated_data, registryname, ve
 def update_single_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data_query = registry.gql_mapper.map_to_graphql(validated_data['query'])
-    mapped_data_write = registry.gql_mapper.map_to_graphql(validated_data['write'])
-    registry_record_field = registry.update_registry_record(mapped_data_query, mapped_data_write)
+    registry_record_field = registry.update_registry_record(validated_data['query'], validated_data['write'])
     return registry_record_field
 
 
 def create_single_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data = registry.gql_mapper.map_to_graphql(validated_data)
-    registry_record = registry.create_registry_record(mapped_data)
+    registry_record = registry.create_registry_record(validated_data)
     if registry_record:
         return 200, registry_record
     else:
@@ -61,9 +55,7 @@ def create_single_record_controller(request, validated_data, registryname, versi
 def create_or_update_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data_query = registry.gql_mapper.map_to_graphql(validated_data['query'])
-    mapped_data_write = registry.gql_mapper.map_to_graphql(validated_data['write'])
-    registry_record = registry.create_or_update_registry_record(mapped_data_query, mapped_data_write)
+    registry_record = registry.create_or_update_registry_record(validated_data['query'], validated_data['write'])
     if registry_record:
         registry_record = registry.gql_mapper.map_from_graphql(registry_record)
         return 200, registry_record
@@ -74,6 +66,5 @@ def create_or_update_record_controller(request, validated_data, registryname, ve
 def delete_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data = registry.gql_mapper.map_to_graphql(validated_data)
-    return registry.delete_registry_record(mapped_data)
+    return registry.delete_registry_record(validated_data)
 

@@ -10,9 +10,9 @@
             },
             "special_fields": ["BirthCertificateID", "PersonalData"],
             "default_values": {
-                "other_names": "otherNames: \"undefined\"",
+                "otherNames": "otherNames: \"undefined\"",
                 "family_id": "familyId: 1",
-                "gender_id": "genderId: \"U\"",
+                "gender_id": "genderId: \"O\"",
                 "dob": "dob: \"1920-04-02\"",
                 "head": "head: false",
                 "card_issued": "cardIssued: false"

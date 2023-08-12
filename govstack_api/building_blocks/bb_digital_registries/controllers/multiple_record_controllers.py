@@ -1,5 +1,8 @@
+import urllib
+
 from govstack_api.apps import TestHarnessApiConfig
 from govstack_api.building_blocks.bb_digital_registries.registries.registry_factory import RegistryFactory
+from govstack_api.graphql_api_client import GrapheneClient
 
 
 def update_multiple_records_controller(request, validated_data, registryname, versionnumber):
@@ -10,24 +13,35 @@ def update_multiple_records_controller(request, validated_data, registryname, ve
     return registry.update_multiple_records(mapped_data_query, mapped_data_write)
 
 
-def get_list_of_records_controller(request, validated_data, registryname, versionnumber):
-    factory = RegistryFactory()
-    registry = factory.get_registry(registryname, versionnumber, request.user)
-    data = {validated_data.get('filter'): validated_data.get('search')} if validated_data.get('filter') else {}
-    mapped_data = registry.gql_mapper.map_to_graphql(data)
-    registry_records = registry.retrieve_filtered_records(
-        mapped_data,
-        validated_data.get('page', 0),
-        validated_data.get('page_size', TestHarnessApiConfig.default_page_size),
-        validated_data.get('ordering')
-    )
-    if registry_records:
-        return 200, registry_records
-    else:
-        return 204, []
+class ListViewController:
 
+    def __init__(self, request, registryname, versionnumber):
+        self.registry = RegistryFactory.get_registry(registryname, versionnumber, request.user)
+        self.request = request
 
-class ListViewControler:
+    def get_records(self, validated_data):
+        data = {validated_data.get('filter'): validated_data.get('search')} if validated_data.get('filter') else {}
+        result = self.registry.retrieve_filtered_records(
+            data,
+            validated_data.get('page', 0),
+            validated_data.get('page_size', TestHarnessApiConfig.default_page_size),
+            validated_data.get('ordering')
+        )
 
-    def __init__(self):
-        ...
+        return 200, self._build_response(result, validated_data.copy())
+
+    def _build_response(self, result, input_data):
+        output = {
+            "count": result['count'],
+            "results": result['entries'],
+        }
+
+        page = input_data.get('page', 0)
+        base_uri = F"/data/{input_data.pop('registryname')}/{input_data.pop('versionnumber')}"
+        if result['has_next_page']:
+            output["next"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}&page={page+1}"
+
+        if page > 0:
+            output["previous"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}&page={page+1}"
+
+        return output
