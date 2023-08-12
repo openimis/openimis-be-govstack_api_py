@@ -11,8 +11,10 @@ from .controllers.multiple_record_controllers import update_multiple_records_con
 from .controllers.single_record_controllers import read_single_record_controller, get_single_record_field_controller, \
     update_single_record_controller, create_single_record_controller, delete_record_controller, \
     create_or_update_record_controller, check_record_presence_controller
+from .registries.base_registry import MutationError
 from .serializers import QueryValidatorSerializer, SingleRecordSerializer, MultipleRecordsSerializer, \
     CombinedValidatorSerializer, WriteValidatorSerializer, RegistryDeleteSerializer
+from rest_framework.exceptions import ErrorDetail, ValidationError
 
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     create_request_body,
@@ -57,7 +59,8 @@ class SingleRecordAPI(APIView):
     )
     def post(self, request, registryname, versionnumber):
         serializer = WriteValidatorSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer.is_valid(raise_exception=True)
             status_code, registry_record = create_single_record_controller(
                 request, serializer.data, registryname, versionnumber
             )
@@ -65,7 +68,10 @@ class SingleRecordAPI(APIView):
                 return Response(registry_record, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.data, status=status_code)
-        return HttpResponse(status=400)
+        except MutationError as e:
+            return Response(e.detail, 400)
+        except ValidationError as e:
+            return Response(e.detail, status=e.status_code)
 
     @swagger_auto_schema(
         operation_description="Updates one existing record in the registry database.",

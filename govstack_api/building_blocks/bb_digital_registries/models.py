@@ -36,3 +36,9 @@ class Registry(models.Model):
     queries = models.JSONField(
         help_text="Queries as a JSON object. Example: {'get': 'GetInsurees'}."
     )
+
+    id_field = models.CharField(
+        max_length=255,
+        help_text="Model field which contains primary key used by "
+                  "registry for entry recognition in GQL notation. I.e. `chfId` for Insuree."
+    )

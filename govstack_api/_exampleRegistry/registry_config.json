@@ -2,6 +2,7 @@
     "registryname": {
         "111": {
             "class": "InsureeRegistry",
+            "id_field": "chfId",
             "fields_mapping": {
                 "ID": "id",
                 "FirstName": "otherNames",

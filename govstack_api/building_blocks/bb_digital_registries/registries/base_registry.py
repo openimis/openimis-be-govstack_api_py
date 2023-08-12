@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import uuid
 import xml.etree.ElementTree as ET
 from functools import cached_property
@@ -9,6 +10,7 @@ from xml.dom import minidom
 import graphene
 
 from govstack_api.graphql_api_client import GrapheneClient
+from core.models import MutationLog
 
 
 class RegistryType(Protocol):
@@ -201,10 +203,11 @@ class GQLPayloadTemplate:
 class GQLPayloadBuilder:
     GQL_PAYLOAD_TEMPLATE = GQLPayloadTemplate()
 
-    def __init__(self, fields_mapping, special_fields, default_values):
+    def __init__(self, fields_mapping, special_fields, default_values, id_field):
         self.fields_mapping = fields_mapping
         self.special_fields = special_fields
         self.default_values = default_values
+        self.id_field = id_field
         self.gql_mapper = DataMapper(self.fields_mapping, self.special_fields)
 
     def build_list_query(self, query_name, data, ordering, page, page_size):
@@ -261,8 +264,8 @@ class GQLPayloadBuilder:
         """
         adapted_data = self.default_values.copy()
         adapted_data.update(mapped_data)
-        if 'chfId' not in adapted_data and 'id' in mapped_data:
-            adapted_data['chfId'] = f'chfId: "{mapped_data["id"]}"'
+        if self.id_field not in adapted_data and 'id' in mapped_data:
+            adapted_data[self.id_field] = f'{self.id_field}: "{mapped_data["id"]}"'
         for key in mapped_data.keys():
             if key in adapted_data:
                 del adapted_data[key]
@@ -270,6 +273,8 @@ class GQLPayloadBuilder:
 
     def build_record_query(self, query_name, data, after_cursor, fetched_fields, first):
         mapped_data = self.gql_mapper.map_to_graphql(data)
+        if self.id_field not in mapped_data and 'id' in mapped_data:
+            mapped_data[self.id_field] = mapped_data.pop('id')
         if not fetched_fields:
             default_fetched_fields = [v for k, v in self.fields_mapping.items() if k != 'uuid']
             default_fetched_fields.append(" jsonExt")
@@ -282,9 +287,14 @@ class GQLPayloadBuilder:
             arguments_with_values += f" first:{first}"
         if after_cursor:
             arguments_with_values = f"after: {after_cursor}"
-        query = self.GQL_PAYLOAD_TEMPLATE.get_single_model_query(query_name, arguments_with_values,
-                                                                 fetched_fields)
+        query = self.GQL_PAYLOAD_TEMPLATE.get_single_model_query(
+            query_name, arguments_with_values, fetched_fields)
         return query
+
+
+class MutationError(Exception):
+    def __init__(self, detail: str):
+        self.detail = detail
 
 
 class RegistryGQLManager:
@@ -295,6 +305,12 @@ class RegistryGQLManager:
     def mutate_registry_record(self, mutation_name, data):
         query = self.payload_builder.build_mutation(data, mutation_name)
         mutation_result = self.client.execute_query(query)
+        if errors := mutation_result.get('errors'):
+            raise MutationError(errors)
+        if client_mutation_id := mutation_result.get('data', {}).get(mutation_name, {}).get('clientMutationId'):
+            mutation_log = MutationLog.objects.filter(client_mutation_id=client_mutation_id).first()
+            if mutation_log.status == mutation_log.ERROR:
+                raise MutationError(mutation_log.error)
         return 200
 
     def retrieve_filtered_records(
@@ -352,6 +368,7 @@ class BaseRegistryABC:
             fields_mapping=config['fields_mapping'],
             special_fields=config['special_fields'],
             default_values=config['default_values'],
+            id_field=config['id_field']
         )
         self.registry_gql_manager = RegistryGQLManager(
             user=config['user'],
@@ -385,6 +402,8 @@ class BaseRegistryABC:
 
     def create_registry_record(self, mapped_data):
         self.registry_gql_manager.mutate_registry_record(self.mutations['create'], mapped_data)
+        # TODO: This can be misleading if registry was created but entry is not returned then
+        #  there will be 404 with content
         return self.registry_gql_manager.get_record(mapped_data, self.queries['get'])
 
     def update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):

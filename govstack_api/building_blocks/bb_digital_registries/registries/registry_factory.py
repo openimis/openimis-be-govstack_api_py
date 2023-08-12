@@ -30,6 +30,7 @@ class RegistryFactory:
                 "default_values": registry.default_values,
                 "mutations": registry.mutations,
                 "queries": registry.queries,
+                "id_field": registry.id_field,
                 "registry_name": registry_name,
                 "version_number": version_number,
                 "user": user
