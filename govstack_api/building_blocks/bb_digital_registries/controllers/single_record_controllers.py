@@ -7,16 +7,17 @@ def read_single_record_controller(request, validated_data, registryname, version
     registry = factory.get_registry(registryname, versionnumber, request.user)
     registry_record = registry.get_record(validated_data)
     if registry_record:
-        registry_record = registry.gql_mapper.map_from_graphql(registry_record)
         return 200, registry_record
     else:
-        return 404, {}
+        return 404, {
+          "detail": "no record found"  # TODO: Should come from translation
+        }
 
 
 def check_record_presence_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    registry_record = registry.get_record(validated_data)
+    registry_record = registry.check_record_exists(validated_data)
     if registry_record:
         return 200, True
     else:

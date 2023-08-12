@@ -26,6 +26,24 @@ from govstack_api.building_blocks.bb_digital_registries.swagger_schema import (
     response_200_body
 )
 from govstack_api.middleware import authenticate_decorator
+from functools import wraps
+from rest_framework.exceptions import ValidationError
+
+from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import MutationError
+
+
+def handle_mutation_exceptions():
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(self, request, *args, **kwargs):
+            try:
+                return view_func(self, request, *args, **kwargs)
+            except MutationError as e:
+                return Response(e.detail, 400)
+            except ValidationError as e:
+                return Response(e.detail, status=e.status_code)
+        return wrapper
+    return decorator
 
 
 class SingleRecordAPI(APIView):
@@ -42,7 +60,7 @@ class SingleRecordAPI(APIView):
             'field': field,
             'ext': ext
         })
-        if serializer.is_valid():
+        if serializer.is_valid(raise_exception=True):
             status_code, registry_record_field = get_single_record_field_controller(
                 request, serializer.data, registryname, versionnumber
             )
@@ -77,6 +95,7 @@ class SingleRecordAPI(APIView):
         operation_description="Updates one existing record in the registry database.",
         request_body=request_body_schema,
         responses={200: 'Successful update or creation'})
+    @handle_mutation_exceptions()
     def put(self, request, registryname, versionnumber):
         serializer = CombinedValidatorSerializer(data=request.data)
         if serializer.is_valid():

@@ -24,7 +24,7 @@ class RegistryType(Protocol):
     def map_from_graphql(self, graphql_data) -> None:
         ...
 
-    def get_record(self) -> None:
+    def get_record(self, data) -> None:
         ...
 
     def get_record_field(self, mapped_data, field=None, extension=None) -> None:
@@ -71,6 +71,9 @@ class DataConverterUtils:
         for record in records:
             if 'id' in record:
                 record['id'] = DataConverterUtils.decode_id(record['id'])
+            if 'jsonExt' in record:
+                json_ext = json.loads(record.pop('jsonExt'))
+                record.update(json_ext)
         if records:
             return records[0] if only_first else records
         else:
@@ -388,6 +391,14 @@ class BaseRegistryABC:
             data, self.queries['get'], page, page_size, ordering
         )
 
+    def get_record(self, data):
+        return self.registry_gql_manager.get_record(
+            data, self.queries['get']
+        )
+
+    def check_record_exists(self, data):
+        return bool(self.get_record(data))
+
     def update_multiple_records(self, data: dict = None, updated_data: dict = None) -> int:
         records = self.registry_gql_manager.get_record(
             data=data,
@@ -407,11 +418,16 @@ class BaseRegistryABC:
         return self.registry_gql_manager.get_record(mapped_data, self.queries['get'])
 
     def update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):
-        if mapped_data_write and "uuid" not in mapped_data_write:
-            record_uuid = self.extract_uuid(mapped_data_query)
-            if record_uuid:
-                mapped_data_write["uuid"] = record_uuid
-        return self.mutate_registry_record(self.mutations['update'], mapped_data_query, mapped_data_write)
+        # Internal uuid identifier is required by all update mutations by design
+        record = self.registry_gql_manager.get_record(
+            mapped_data_query, self.queries['get'], fetched_fields=['uuid'], only_first=False)
+        if not record or len(record) == 0:
+            raise MutationError("Record not found for provided query.")
+        if len(record) > 1:
+            raise MutationError("More than one updatable entry found for provided query, aborting.")
+
+        mapped_data_write['uuid'] = record[0]['uuid']
+        return self.registry_gql_manager.mutate_registry_record(self.mutations['update'], mapped_data_write)
 
     def delete_registry_record(self, mapped_data):
         insuree_uuid = self.extract_uuid(mapped_data)
