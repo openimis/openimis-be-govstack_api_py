@@ -2,15 +2,12 @@ import urllib
 
 from govstack_api.apps import TestHarnessApiConfig
 from govstack_api.building_blocks.bb_digital_registries.registries.registry_factory import RegistryFactory
-from govstack_api.graphql_api_client import GrapheneClient
 
 
 def update_multiple_records_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    mapped_data_query = registry.gql_mapper.map_to_graphql(validated_data['query'])
-    mapped_data_write = registry.gql_mapper.map_to_graphql(validated_data['write'])
-    return registry.update_multiple_records(mapped_data_query, mapped_data_write)
+    return registry.update_multiple_records(validated_data['query'], validated_data['write'])
 
 
 class ListViewController:

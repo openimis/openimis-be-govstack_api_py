@@ -356,14 +356,6 @@ class BaseRegistryABC:
     def GQLMutation(self) -> graphene.ObjectType:
         raise NotImplementedError()
 
-    @property
-    def data_converter_type(self) -> Type[DataConverterUtils]:
-        return DataConverterUtils
-
-    @property
-    def gql_mapper_type(self) -> Type[DataMapper]:
-        return DataMapper
-
     GQL_PAYLOAD_TEMPLATE = GQLPayloadTemplate()
 
     def __init__(self, config):
@@ -399,16 +391,14 @@ class BaseRegistryABC:
     def check_record_exists(self, data):
         return bool(self.get_record(data))
 
-    def update_multiple_records(self, data: dict = None, updated_data: dict = None) -> int:
+    def update_multiple_records(self, mapped_data_query: dict = None, mapped_data_write: dict = None) -> int:
+        # TODO: This method is unsafe as cannot be made transactional from here. Best
+        #  solution would be introduction of bulk update to IMIS mutations.
         records = self.registry_gql_manager.get_record(
-            data=data,
-            query_name=self.queries['get'],
-            fetched_fields=['uuid'],
-            only_first=False
-        )
+            mapped_data_query, self.queries['get'], fetched_fields=['uuid'], only_first=False)
         for record in records:
-            updated_data = {**record, **updated_data}
-            self.update_registry_record(updated_data)
+            mapped_data_write['uuid'] = record['uuid']
+            self.registry_gql_manager.mutate_registry_record(self.mutations['update'], mapped_data_write)
         return 200
 
     def create_registry_record(self, mapped_data):
@@ -442,12 +432,17 @@ class BaseRegistryABC:
             return 404
 
     def create_or_update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):
-        insuree_uuid = self.get_record_field(mapped_data_query, field="uuid", extension="string")
-        if insuree_uuid != "None":
-            self.update_registry_record(mapped_data_query, mapped_data_write)
+        # TODO: With numbers of API calls in this method is it quite inefficient
+        record = self.registry_gql_manager.get_record(
+            mapped_data_query, self.queries['get'], fetched_fields=['uuid'], only_first=False)
+        if not record or len(record) == 0:
+            return self.create_registry_record(mapped_data_query)
+        elif len(record) == 1:
+            mapped_data_write['uuid'] = record[0]['uuid']
+            self.registry_gql_manager.mutate_registry_record(self.mutations['update'], mapped_data_write)
+            return self.registry_gql_manager.get_record(mapped_data_write, self.queries['get'])
         else:
-            self.create_registry_record(mapped_data_write)
-        return self.get_record(mapped_data_write)
+            raise MutationError("More than one updatable entry found for provided query, aborting.")
 
     def get_record_field(self, mapped_data=None, field=None, extension=None, only_first=True):
         insuree_data = self.get_record(mapped_data, field, only_first=only_first)

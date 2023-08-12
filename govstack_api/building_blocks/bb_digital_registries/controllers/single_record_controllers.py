@@ -58,7 +58,6 @@ def create_or_update_record_controller(request, validated_data, registryname, ve
     registry = factory.get_registry(registryname, versionnumber, request.user)
     registry_record = registry.create_or_update_registry_record(validated_data['query'], validated_data['write'])
     if registry_record:
-        registry_record = registry.gql_mapper.map_from_graphql(registry_record)
         return 200, registry_record
     else:
         return 404, {}

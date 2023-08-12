@@ -1,10 +1,11 @@
 from django.urls import path
 
-from .views import (
-    SearchRecordView, SingleRecordAPI,
-    CheckRecordPresenceView, UpdateOrCreateRecordView,
-    MultipleRecordAPI, PersonalDataAPI
-)
+from govstack_api.building_blocks.bb_digital_registries.views import PersonalDataAPI
+from govstack_api.building_blocks.bb_digital_registries.views import MultipleRecordAPI
+from govstack_api.building_blocks.bb_digital_registries.views import UpdateOrCreateRecordView
+from govstack_api.building_blocks.bb_digital_registries.views import CheckRecordPresenceView
+from govstack_api.building_blocks.bb_digital_registries.views import SearchRecordView
+from govstack_api.building_blocks.bb_digital_registries.views import SingleRecordAPI
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 
