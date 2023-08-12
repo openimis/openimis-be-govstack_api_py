@@ -1,16 +1,15 @@
 from types import SimpleNamespace
-from unittest import mock
 from graphene.test import Client
 from graphene import Schema
 
 
 class GrapheneClient:
-    def __init__(self, request, query, mutation):
+    def __init__(self, user, query, mutation):
         self._client = Client(Schema(query=query, mutation=mutation))
-        self.context = self.get_context(request)
+        self.context = self.get_context(user)
 
-    def get_context(self, request):
-        return SimpleNamespace(user=request.user)
+    def get_context(self, user):
+        return SimpleNamespace(user=user)
 
     def execute_query(self, query, variables=None):
         if variables is None:
@@ -28,6 +27,7 @@ class GrapheneClient:
         except GraphQLError as e:
             print(f"An error occurred during mutation execution: {e}")
             return None
+
 
 class GraphQLError(Exception):
     """Exception raised for errors in GraphQL queries or mutations."""

@@ -4,17 +4,17 @@ from govstack_api.building_blocks.bb_digital_registries.registries.registry_fact
 
 def update_multiple_records_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
-    registry = factory.get_registry(registryname, versionnumber, request)
-    mapped_data_query = registry.map_to_graphql(validated_data['query'])
-    mapped_data_write = registry.map_to_graphql(validated_data['write'])
+    registry = factory.get_registry(registryname, versionnumber, request.user)
+    mapped_data_query = registry.gql_mapper.map_to_graphql(validated_data['query'])
+    mapped_data_write = registry.gql_mapper.map_to_graphql(validated_data['write'])
     return registry.update_multiple_records(mapped_data_query, mapped_data_write)
 
 
 def get_list_of_records_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
-    registry = factory.get_registry(registryname, versionnumber, request)
+    registry = factory.get_registry(registryname, versionnumber, request.user)
     data = {validated_data.get('filter'): validated_data.get('search')} if validated_data.get('filter') else {}
-    mapped_data = registry.map_to_graphql(data)
+    mapped_data = registry.gql_mapper.map_to_graphql(data)
     registry_records = registry.retrieve_filtered_records(
         mapped_data,
         validated_data.get('page', 0),
@@ -25,3 +25,9 @@ def get_list_of_records_controller(request, validated_data, registryname, versio
         return 200, registry_records
     else:
         return 204, []
+
+
+class ListViewControler:
+
+    def __init__(self):
+        ...

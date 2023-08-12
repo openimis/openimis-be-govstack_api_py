@@ -9,7 +9,7 @@ class RegistryFactory:
     def __init__(self):
         pass
 
-    def get_registry(self, registry_name, version_number, request):
+    def get_registry(self, registry_name, version_number, user):
         registry = Registry.objects.get(registry_name=registry_name, version=version_number)
         if registry is None:
             raise ValueError(f"No registry found for name {registry_name} and version {version_number}")
@@ -19,7 +19,7 @@ class RegistryFactory:
         if registry_class is None:
             raise ValueError(f"No registry class found for {registry_class_name}")
 
-        registry_instance = registry_class(
+        return registry_class(
             {
                 "class": registry.class_name,
                 "model": registry.model,
@@ -29,9 +29,6 @@ class RegistryFactory:
                 "mutations": registry.mutations,
                 "queries": registry.queries,
                 "registry_name": registry_name,
-                "version_number": version_number
-            },
-            request
-        )
-        return registry_instance
-
+                "version_number": version_number,
+                "user": user
+            })
