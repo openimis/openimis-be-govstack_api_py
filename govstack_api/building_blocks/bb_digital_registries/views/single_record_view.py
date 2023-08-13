@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from govstack_api.building_blocks.bb_digital_registries.controllers.single_record_controllers import \
     get_single_record_field_controller, create_single_record_controller, update_single_record_controller, \
     delete_record_controller
-from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import MutationError
+from govstack_api.building_blocks.bb_digital_registries.registries.registry_qgl_utils import MutationError
 from govstack_api.building_blocks.bb_digital_registries.serializers import SingleRecordSerializer, \
     WriteValidatorSerializer, CombinedValidatorSerializer, RegistryDeleteSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import read_value_parameters, \
@@ -17,29 +17,6 @@ from govstack_api.building_blocks.bb_digital_registries.views import handle_muta
 
 
 class SingleRecordAPI(APIView):
-    @swagger_auto_schema(
-        operation_description='Searches and returns one record’s one field value.',
-        manual_parameters=read_value_parameters,
-        responses={200: read_value_response_body},
-    )
-    @handle_mutation_exceptions()
-    def get(self, request, registryname, versionnumber, uuid, field, ext):
-        serializer = SingleRecordSerializer(data={
-            'registryname': registryname,
-            'versionnumber': versionnumber,
-            'uuid': uuid,
-            'field': field,
-            'ext': ext
-        })
-        if serializer.is_valid(raise_exception=True):
-            status_code, registry_record_field = get_single_record_field_controller(
-                request, serializer.data, registryname, versionnumber
-            )
-            if status_code == 200:
-                return Response(registry_record_field, status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_description="Create new record",

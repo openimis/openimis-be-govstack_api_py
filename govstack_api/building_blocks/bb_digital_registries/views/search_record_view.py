@@ -35,3 +35,5 @@ class SearchRecordView(APIView):
                 return Response(serializer.data, status=status_code)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+

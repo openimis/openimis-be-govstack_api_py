@@ -27,9 +27,9 @@ def check_record_presence_controller(request, validated_data, registryname, vers
 def get_single_record_field_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    registry_record_field = registry.get_record_field(
-        validated_data, field=validated_data['field'], extension=validated_data['ext']
-    )
+    registry_record_field = registry\
+        .get_record_field(validated_data['uuid'], validated_data['field'], validated_data['ext'])
+    
     if registry_record_field:
         return 200, registry_record_field
     else:

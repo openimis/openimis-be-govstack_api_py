@@ -3,7 +3,7 @@ from functools import wraps
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import MutationError
+from govstack_api.building_blocks.bb_digital_registries.registries.registry_qgl_utils import MutationError
 
 
 def handle_mutation_exceptions():
