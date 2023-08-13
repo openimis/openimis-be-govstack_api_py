@@ -22,6 +22,7 @@ class SingleRecordAPI(APIView):
         manual_parameters=read_value_parameters,
         responses={200: read_value_response_body},
     )
+    @handle_mutation_exceptions()
     def get(self, request, registryname, versionnumber, uuid, field, ext):
         serializer = SingleRecordSerializer(data={
             'registryname': registryname,
@@ -45,6 +46,7 @@ class SingleRecordAPI(APIView):
         request_body=create_request_body,
         responses={200: create_response_body},
     )
+    @handle_mutation_exceptions()
     def post(self, request, registryname, versionnumber):
         serializer = WriteValidatorSerializer(data=request.data)
         try:
@@ -68,29 +70,28 @@ class SingleRecordAPI(APIView):
     @handle_mutation_exceptions()
     def put(self, request, registryname, versionnumber):
         serializer = CombinedValidatorSerializer(data=request.data)
-        if serializer.is_valid():
-            status_code = update_single_record_controller(request, serializer.data, registryname, versionnumber)
-            if status_code == 200:
-                return Response(status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code = update_single_record_controller(request, serializer.data, registryname, versionnumber)
+        if status_code == 200:
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.data, status=status_code)
 
     @swagger_auto_schema(
         operation_description='Delete record.',
         manual_parameters=delete_parameters,
         responses={204: delete_response},
     )
+    @handle_mutation_exceptions()
     def delete(self, request, registryname, versionnumber, ID):
         serializer = RegistryDeleteSerializer(data={
             'registryname': registryname,
             'versionnumber': versionnumber,
             'ID': ID
         })
-        if serializer.is_valid():
-            status_code = delete_record_controller(request, serializer.data, registryname, versionnumber)
-            if status_code == 204:
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code = delete_record_controller(request, serializer.data, registryname, versionnumber)
+        if status_code == 204:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(serializer.data, status=status_code)

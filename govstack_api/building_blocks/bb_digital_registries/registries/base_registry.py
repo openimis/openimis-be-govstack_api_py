@@ -116,9 +116,16 @@ class DataConverterUtils:
 class DataMapper:
     """Handles mapping data between GraphQL and HTTP."""
 
-    def __init__(self, fields_mapping, special_fields):
+    def __init__(self, fields_mapping, special_fields, meta_fields=None):
+        # Field mappings reflect the relation between external value from registry and internal from model
         self.fields_mapping = fields_mapping
+        # Special fields are fields that are required by registry but not by default stored in the IMIS. They're stored
+        # in the json ext and don't have mapping.
         self.special_fields = special_fields
+        # For Delete operation and other scenarios structure of imis might not be compliant with registry mapping.
+        # Most delete operations in imis are bulk deletes determined by uuids list, however registry architecture
+        # demands single ID delete, that's why 'uuids' input is allowed even if it's not part of registry definition.
+        self.meta_fields = meta_fields or ['uuids']
 
     def map_to_graphql(self, validated_data):
         mapped_data = {}
@@ -129,8 +136,13 @@ class DataMapper:
                 mapped_data[graphql_field] = value
             elif http_field in self.special_fields:
                 json_ext[http_field] = value
+            elif http_field in self.meta_fields:
+                mapped_data[http_field] = value
             else:
-                raise ValueError(f"Unsupported field: {http_field}")
+                raise MutationError(
+                    f"Unsupported field: `{http_field}`. "
+                    f"Allowed fields for registry: \n{list(self.fields_mapping.keys())}\n{self.special_fields}"
+                )
 
         if json_ext:
             mapped_data['jsonExt'] = json.dumps(json_ext)
@@ -210,6 +222,8 @@ class GQLPayloadBuilder:
         self.fields_mapping = fields_mapping
         self.special_fields = special_fields
         self.default_values = default_values
+        # It's possible to overwrite default uuid/ID with custom fields from the model. if id_field is provided then
+        # value of key "id" changes to id_field.
         self.id_field = id_field
         self.gql_mapper = DataMapper(self.fields_mapping, self.special_fields)
 
@@ -246,13 +260,15 @@ class GQLPayloadBuilder:
                     arguments.append(f'{field}: {int(value)}')
                 else:
                     arguments.append(f'{field}: "{value}"')
+            elif isinstance(value, list):
+                arguments.append(f'{field}: {json.dumps(value)}')
             else:
                 arguments.append(f'{field}: "{value}"')
         return ', '.join(arguments)
 
-    def build_mutation(self, data_to_write, mutation_name):
+    def build_mutation(self, data_to_write, mutation_name, use_defaults):
         mapped_data = self.gql_mapper.map_to_graphql(data_to_write)
-        default_data_values = self.fill_payload_with_defaults(mapped_data)
+        default_data_values = self.fill_payload_with_defaults(mapped_data) if use_defaults else {}
         arguments_with_values = self.create_arguments_with_values(mapped_data)
         query = self.GQL_PAYLOAD_TEMPLATE.get_mutation(
             mutation_name=mutation_name,
@@ -305,8 +321,8 @@ class RegistryGQLManager:
         self.client = GrapheneClient(user, gql_query, gql_mutation)
         self.payload_builder = payload_builder
 
-    def mutate_registry_record(self, mutation_name, data):
-        query = self.payload_builder.build_mutation(data, mutation_name)
+    def mutate_registry_record(self, mutation_name, data, use_defaults=True):
+        query = self.payload_builder.build_mutation(data, mutation_name, use_defaults)
         mutation_result = self.client.execute_query(query)
         if errors := mutation_result.get('errors'):
             raise MutationError(errors)
@@ -420,16 +436,16 @@ class BaseRegistryABC:
         return self.registry_gql_manager.mutate_registry_record(self.mutations['update'], mapped_data_write)
 
     def delete_registry_record(self, mapped_data):
-        insuree_uuid = self.extract_uuid(mapped_data)
-        if insuree_uuid:
-            query = self.GQL_PAYLOAD_TEMPLATE.get_mutation(
-                mutation_name=self.mutations['delete'],
-                arguments_with_values=f'''uuids: {json.dumps([insuree_uuid])}''',
-            )
-            self.client.execute_query(query)
-            return 204
-        else:
-            return 404
+        record = self.registry_gql_manager.get_record(
+            mapped_data, self.queries['get'], fetched_fields=['uuid'], only_first=False)
+        if not record or len(record) == 0:
+            raise MutationError("Record not found for provided query.")
+        if len(record) > 1:
+            raise MutationError("More than one record found for provided query, aborting.")
+
+        delete_data = {'uuids': [record[0]['uuid']]}
+        self.registry_gql_manager.mutate_registry_record(self.mutations['delete'], delete_data, False)
+        return 204
 
     def create_or_update_registry_record(self, mapped_data_query: dict = None, mapped_data_write: dict = None):
         # TODO: With numbers of API calls in this method is it quite inefficient
@@ -443,20 +459,6 @@ class BaseRegistryABC:
             return self.registry_gql_manager.get_record(mapped_data_write, self.queries['get'])
         else:
             raise MutationError("More than one updatable entry found for provided query, aborting.")
-
-    def get_record_field(self, mapped_data=None, field=None, extension=None, only_first=True):
-        insuree_data = self.get_record(mapped_data, field, only_first=only_first)
-        insuree_data = self.data_converter.change_result_extension(insuree_data, extension)
-        return insuree_data
-
-    def extract_uuid(self, mapped_data_query, only_first=True):
-        returned_uuid = self.get_record_field(
-            mapped_data=mapped_data_query, field="uuid", extension="json", only_first=only_first
-        )
-        if returned_uuid and returned_uuid != 'null':
-            return returned_uuid.get('uuid')
-        else:
-            return None
 
 
 class BaseRegistry(BaseRegistryABC):

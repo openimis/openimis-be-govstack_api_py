@@ -7,6 +7,7 @@ from govstack_api.building_blocks.bb_digital_registries.controllers.single_recor
     check_record_presence_controller
 from govstack_api.building_blocks.bb_digital_registries.serializers import QueryValidatorSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import exists_request_body, exists_response_body
+from govstack_api.building_blocks.bb_digital_registries.views import handle_mutation_exceptions
 
 
 class CheckRecordPresenceView(APIView):
@@ -15,6 +16,7 @@ class CheckRecordPresenceView(APIView):
         request_body=exists_request_body,
         responses={200: exists_response_body},
     )
+    @handle_mutation_exceptions()
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
         if serializer.is_valid():

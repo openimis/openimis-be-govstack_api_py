@@ -9,6 +9,7 @@ from govstack_api.building_blocks.bb_digital_registries.controllers.single_recor
 from govstack_api.building_blocks.bb_digital_registries.serializers import QueryValidatorSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import exists_request_body, info_mediator_client, \
     response_200_body
+from govstack_api.building_blocks.bb_digital_registries.views import handle_mutation_exceptions
 from govstack_api.middleware import authenticate_decorator
 
 
@@ -21,6 +22,7 @@ class SearchRecordView(APIView):
         manual_parameters=[info_mediator_client],
         responses={200: response_200_body},
     )
+    @handle_mutation_exceptions()
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
         if serializer.is_valid():

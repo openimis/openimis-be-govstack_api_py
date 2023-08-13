@@ -66,5 +66,5 @@ def create_or_update_record_controller(request, validated_data, registryname, ve
 def delete_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    return registry.delete_registry_record(validated_data)
+    return registry.delete_registry_record({'ID': validated_data['ID']})
 

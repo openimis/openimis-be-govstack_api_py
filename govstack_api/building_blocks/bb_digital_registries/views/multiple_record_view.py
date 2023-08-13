@@ -9,6 +9,7 @@ from govstack_api.building_blocks.bb_digital_registries.serializers import Multi
     CombinedValidatorSerializer
 from govstack_api.building_blocks.bb_digital_registries.swagger_schema import \
     get_multiple_records_from_registry_parameters, create_response_body, request_body_schema, responses_schema
+from govstack_api.building_blocks.bb_digital_registries.views import handle_mutation_exceptions
 
 
 class MultipleRecordAPI(APIView):
@@ -17,6 +18,7 @@ class MultipleRecordAPI(APIView):
         operation_description="Get records from the registry database.",
         manual_parameters=get_multiple_records_from_registry_parameters,
         responses={200: create_response_body})
+    @handle_mutation_exceptions()
     def get(self, request, registryname, versionnumber):
         data = {
             'registryname': registryname,
@@ -51,6 +53,7 @@ class MultipleRecordAPI(APIView):
         request_body=request_body_schema,
         responses=responses_schema
     )
+    @handle_mutation_exceptions()
     def put(self, request, registryname, versionnumber):
         # TODO: This will always fail. According to the documentation, it's labeled as PUT in the API schema, but it
         #  most likely should be PATCH. There's a unique ID constraint that contradicts the expected PUT structure.
