@@ -19,7 +19,7 @@ def check_record_presence_controller(request, validated_data, registryname, vers
     registry = factory.get_registry(registryname, versionnumber, request.user)
     registry_record = registry.check_record_exists(validated_data)
     if registry_record:
-        return 200, True
+        return 200, registry_record
     else:
         return 404, False
 
@@ -39,8 +39,11 @@ def get_single_record_field_controller(request, validated_data, registryname, ve
 def update_single_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    registry_record_field = registry.update_registry_record(validated_data['query'], validated_data['write'])
-    return registry_record_field
+    update_success = registry.update_registry_record(validated_data['query'], validated_data['write'])
+    if update_success:
+        return 200, None
+    else:
+        return 400, {}
 
 
 def create_single_record_controller(request, validated_data, registryname, versionnumber):
@@ -48,9 +51,9 @@ def create_single_record_controller(request, validated_data, registryname, versi
     registry = factory.get_registry(registryname, versionnumber, request.user)
     registry_record = registry.create_registry_record(validated_data)
     if registry_record:
-        return 200, registry_record
+        return 200, {'content': registry_record}
     else:
-        return 404, {}
+        return 400, {}
 
 
 def create_or_update_record_controller(request, validated_data, registryname, versionnumber):
@@ -60,11 +63,15 @@ def create_or_update_record_controller(request, validated_data, registryname, ve
     if registry_record:
         return 200, registry_record
     else:
-        return 404, {}
+        return 400, {}
 
 
 def delete_record_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    return registry.delete_registry_record({'ID': validated_data['ID']})
+    result = registry.delete_registry_record({'ID': validated_data['ID']})
+    if result:
+        return 204, {}
+    else:
+        return 400, {}
 

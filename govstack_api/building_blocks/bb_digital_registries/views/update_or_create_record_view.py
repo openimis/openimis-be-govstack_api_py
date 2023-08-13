@@ -19,12 +19,8 @@ class UpdateOrCreateRecordView(APIView):
     )
     def post(self, request, registryname, versionnumber):
         serializer = CombinedValidatorSerializer(data=request.data)
-        if serializer.is_valid():
-            status_code, registry_record = create_or_update_record_controller(
-                request, serializer.data, registryname, versionnumber
-            )
-            if status_code == 200:
-                return Response(registry_record, status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code, registry_record = create_or_update_record_controller(
+            request, serializer.data, registryname, versionnumber
+        )
+        return Response({'content': registry_record} if registry_record else None, status=status_code)

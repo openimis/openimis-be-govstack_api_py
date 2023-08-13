@@ -29,12 +29,8 @@ class SingleFieldView(APIView):
             'field': field,
             'ext': ext
         })
-        if serializer.is_valid(raise_exception=True):
-            status_code, registry_record_field = get_single_record_field_controller(
-                request, serializer.data, registryname, versionnumber
-            )
-            if status_code == 200:
-                return Response(registry_record_field, status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.data, status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code, data = get_single_record_field_controller(
+            request, serializer.data, registryname, versionnumber
+        )
+        return Response(data, status=status_code)

@@ -1,6 +1,9 @@
 import base64
+import dataclasses
 import json
 import uuid
+from abc import abstractmethod
+from typing import List, Dict, Any
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 
@@ -14,19 +17,16 @@ class DataConverterUtils:
     """Handles the conversion of data formats."""
 
     @staticmethod
-    def extract_records(result, query_get, only_first=True):
+    def extract_records(result, query_get):
         edges = result.get('data', {}).get(f'{query_get}', {}).get('edges', [])
         records = [edge.get('node', {}) for edge in edges]
         for record in records:
             if 'id' in record:
                 record['id'] = DataConverterUtils.decode_id(record['id'])
-            if 'jsonExt' in record:
+            if record.get('jsonExt'):  # JSON Ext can be blank or null, in that case special fields are not included
                 json_ext = json.loads(record.pop('jsonExt'))
                 record.update(json_ext)
-        if records:
-            return records[0] if only_first else records
-        else:
-            return None
+        return records
 
     # ToDO: Check if it's used
     @staticmethod
@@ -63,9 +63,7 @@ class DataConverterUtils:
 
 
 class DataMapper:
-    """Handles mapping data between GraphQL and HTTP."""
-
-    def __init__(self, fields_mapping, special_fields, meta_fields=None):
+    def __init__(self, fields_mapping, special_fields, default_values, meta_fields=None):
         # Field mappings reflect the relation between external value from registry and internal from model
         self.fields_mapping = fields_mapping
         # Special fields are fields that are required by registry but not by default stored in the IMIS. They're stored
@@ -74,7 +72,11 @@ class DataMapper:
         # For Delete operation and other scenarios structure of imis might not be compliant with registry mapping.
         # Most delete operations in imis are bulk deletes determined by uuids list, however registry architecture
         # demands single ID delete, that's why 'uuids' input is allowed even if it's not part of registry definition.
-        self.meta_fields = meta_fields or ['uuids']
+        self.meta_fields = meta_fields or ['uuid', 'uuids']
+
+        # Default values are used in case when some data is not expected to be a part of the registry but is
+        # mandatory in the openIMIS data structure.
+        self.default_values = default_values
 
     def map_to_graphql(self, validated_data):
         mapped_data = {}
@@ -97,30 +99,20 @@ class DataMapper:
             mapped_data['jsonExt'] = json.dumps(json_ext)
         return mapped_data
 
-    def map_from_graphql(self, graphql_data):
-        mapped_data = {}
-        json_ext = {}
+    def map_to_registry(self, graphql_data: List[Dict[str, Any]]):
+        mapped_data = []
         # We need to reverse the fields_mapping dictionary for map_from_graphql
         reversed_fields_mapping = {v: k for k, v in self.fields_mapping.items()}
-
-        for graphql_field, value in graphql_data.items():
-            if graphql_field in reversed_fields_mapping:
-                http_field = reversed_fields_mapping[graphql_field]
-                mapped_data[http_field] = value
-            elif graphql_field == 'jsonExt':
-                if value is not None:
-                    try:
-                        value = json.loads(value)  # First decoding
-                        json_ext = json.loads(value)  # Second decoding
-                    except json.JSONDecodeError as e:
-                        print(f"Cannot decode value: {value}. Error: {e}")
-                        json_ext = {}
-                else:
-                    json_ext = {}
-        for special_field in self.special_fields:
-            if special_field in json_ext:
-                mapped_data[special_field] = json_ext[special_field]
-
+        for next_record in graphql_data:
+            mapped_entry = {}
+            for k, v in next_record.items():
+                if k in self.meta_fields:
+                    continue
+                if k in reversed_fields_mapping.keys():
+                    mapped_entry[reversed_fields_mapping[k]] = v
+                if k in self.special_fields:
+                    mapped_entry[k] = v
+            mapped_data.append(mapped_entry)
         return mapped_data
 
 
@@ -167,24 +159,27 @@ class GQLPayloadTemplate:
 class GQLPayloadBuilder:
     GQL_PAYLOAD_TEMPLATE = GQLPayloadTemplate()
 
-    def __init__(self, fields_mapping, special_fields, default_values, id_field):
-        self.fields_mapping = fields_mapping
-        self.special_fields = special_fields
-        self.default_values = default_values
+    def __init__(self, gql_mapper: DataMapper, id_field):
+        self.fields_mapping = gql_mapper.fields_mapping
+        self.special_fields = gql_mapper.special_fields
+        self.default_values = gql_mapper.default_values
         # It's possible to overwrite default uuid/ID with custom fields from the model. if id_field is provided then
         # value of key "id" changes to id_field.
         self.id_field = id_field
-        self.gql_mapper = DataMapper(self.fields_mapping, self.special_fields)
+        self.gql_mapper = DataMapper(self.fields_mapping, self.special_fields, self.default_values)
 
     def build_list_query(self, query_name, data, ordering, page, page_size):
         mapped_data = self.gql_mapper.map_to_graphql(data)
         fetched_fields = ' '.join(self.fields_mapping.values())
+        # It's not possible to create a full projection for "special_fields" entries stored in json ext that's why it's
+        # always added to the query.
+        fetched_fields += ' jsonExt'
         mapped_data.pop('jsonExt', None)
         arguments_with_values = self.create_arguments_with_values(mapped_data)
         if page_size:
             arguments_with_values += f' first:{page_size}'
         if page:
-            arguments_with_values += f' offset: "{page * page_size}"'
+            arguments_with_values += f' offset: {page * page_size}'
         if ordering and mapped_data:
             sort_field = list(mapped_data.keys())[0]
             order_arg = f'"{sort_field}"'
@@ -265,21 +260,35 @@ class MutationError(Exception):
         self.detail = detail
 
 
+@dataclasses.dataclass
+class RegistryGQLManagerActionResult:
+    success: int
+    data: Any
+
+
 class RegistryGQLManager:
-    def __init__(self, user, gql_query, gql_mutation, payload_builder: GQLPayloadBuilder):
+    def __init__(self, user, gql_query, gql_mutation, qgl_mapper: DataMapper, id_field):
         self.client = GrapheneClient(user, gql_query, gql_mutation)
-        self.payload_builder = payload_builder
+        self.qgl_mapper = qgl_mapper
+        self.payload_builder = GQLPayloadBuilder(qgl_mapper, id_field)
 
     def mutate_registry_record(self, mutation_name, data, use_defaults=True):
         query = self.payload_builder.build_mutation(data, mutation_name, use_defaults)
         mutation_result = self.client.execute_query(query)
         if errors := mutation_result.get('errors'):
             raise MutationError(errors)
-        if client_mutation_id := mutation_result.get('data', {}).get(mutation_name, {}).get('clientMutationId'):
-            mutation_log = MutationLog.objects.filter(client_mutation_id=client_mutation_id).first()
-            if mutation_log.status == mutation_log.ERROR:
-                raise MutationError(mutation_log.error)
-        return 200
+
+        client_mutation_id = mutation_result.get('data', {}).get(mutation_name, {}).get('clientMutationId')
+        if not client_mutation_id:
+            raise MutationError(
+                'Invalid mutation data, expected to get data.clientMutationId, mutation result:\n'
+                F'{mutation_result}'
+            )
+
+        mutation_log = MutationLog.objects.filter(client_mutation_id=client_mutation_id).first()
+        if mutation_log.status == mutation_log.ERROR:
+            raise MutationError(mutation_log.error)
+        return RegistryGQLManagerActionResult(success=1, data=None)
 
     def retrieve_filtered_records(
             self, data: dict = None, query_name: str = None,
@@ -292,23 +301,41 @@ class RegistryGQLManager:
             "previous": None,
             "results": [],
         }
-        query = self.payload_builder.build_list_query(query_name, data, ordering, page, page_size)
+        query = self.payload_builder.build_list_query(
+            query_name=query_name,
+            data=data,
+            ordering=ordering,
+            page=page,
+            page_size=page_size
+        )
         result = self.client.execute_query(query)
-        extracted_records = DataConverterUtils.extract_records(result=result, query_get=query_name, only_first=False)
+        extracted_records = DataConverterUtils.extract_records(result=result, query_get=query_name)
+        extracted_records = self.qgl_mapper.map_to_registry(extracted_records)
         response_data["results"].extend(extracted_records)
         response_data["count"] = result['data'][query_name]['totalCount']
-        return {
+        return RegistryGQLManagerActionResult(success=1, data={
             'entries': extracted_records,
             'count': result['data'][query_name]['totalCount'],
             'has_next_page': result['data'][query_name]['pageInfo']['hasNextPage']
-        }
+        })
 
     def get_record(
             self, data, query_name,
-            fetched_fields=None, only_first=True, after_cursor=None, first=TestHarnessApiConfig.default_page_size):
+            fetched_fields=None, only_first=True, after_cursor=None,
+            first=TestHarnessApiConfig.default_page_size,
+            skip_mapping=False):
         # workaround because for now we lack on filtering json_ext
         query = self.payload_builder.build_record_query(
-            query_name, data, after_cursor, fetched_fields, first)
+            query_name=query_name,
+            data=data,
+            after_cursor=after_cursor,
+            fetched_fields=fetched_fields,
+            first=first
+        )
         result = self.client.execute_query(query)
-        registry_data = DataConverterUtils.extract_records(result, query_name, only_first)
-        return registry_data
+        extracted_records = DataConverterUtils.extract_records(result=result, query_get=query_name)
+        if not skip_mapping:
+            extracted_records = self.qgl_mapper.map_to_registry(extracted_records)
+        if only_first and len(extracted_records) > 0:
+            return RegistryGQLManagerActionResult(success=1, data=extracted_records[0])
+        return RegistryGQLManagerActionResult(success=1, data=extracted_records)

@@ -25,15 +25,8 @@ class SearchRecordView(APIView):
     @handle_mutation_exceptions()
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
-        if serializer.is_valid():
-            status_code, registry_record = read_single_record_controller\
-                (request, serializer.data, registryname, versionnumber)
-            if status_code == 200:
-                return_data = {'content': registry_record}
-                return Response(return_data, status=status.HTTP_200_OK)
-            else:
-                return Response(serializer.data, status=status_code)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+        serializer.is_valid(raise_exception=True)
+        status_code, data = read_single_record_controller(request, serializer.data, registryname, versionnumber)
+        if status_code == 200:
+            data = {'content': data}
+        return Response(data, status=status_code)

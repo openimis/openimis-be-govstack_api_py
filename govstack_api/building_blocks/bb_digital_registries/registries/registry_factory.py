@@ -1,7 +1,7 @@
 from typing import Type
 
 from govstack_api.building_blocks.bb_digital_registries.models import Registry
-from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import RegistryType
+from govstack_api.building_blocks.bb_digital_registries.registries.base_registry import Registry as RegistryInterface
 
 # Note: globals().get(registry_class_name) expects to have registries imported in here.
 # noinspection PyUnresolvedReferences
@@ -16,7 +16,7 @@ class RegistryFactory:
             raise ValueError(f"No registry found for name {registry_name} and version {version_number}")
         registry_class_name = registry.class_name
 
-        registry_class: Type[RegistryType] = globals().get(registry_class_name)
+        registry_class: Type[RegistryInterface] = globals().get(registry_class_name)
 
         if registry_class is None:
             raise ValueError(f"No registry class found for {registry_class_name}")

@@ -7,7 +7,11 @@ from govstack_api.building_blocks.bb_digital_registries.registries.registry_fact
 def update_multiple_records_controller(request, validated_data, registryname, versionnumber):
     factory = RegistryFactory()
     registry = factory.get_registry(registryname, versionnumber, request.user)
-    return registry.update_multiple_records(validated_data['query'], validated_data['write'])
+    result = registry.update_multiple_records(validated_data['query'], validated_data['write'])
+    if result:
+        return 200, result
+    else:
+        return 400, {}
 
 
 class ListViewController:
@@ -34,11 +38,15 @@ class ListViewController:
         }
 
         page = input_data.get('page', 0)
+        # Combining the path from the parsed URL to get the desired part
+        # TODO: Check if this should be full url projection or just relevant URI path
         base_uri = F"/data/{input_data.pop('registryname')}/{input_data.pop('versionnumber')}"
         if result['has_next_page']:
-            output["next"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}&page={page+1}"
+            input_data['page'] = page+1
+            output["next"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}"
 
         if page > 0:
-            output["previous"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}&page={page+1}"
+            input_data['page'] = page - 1
+            output["previous"] = F"{base_uri}/?{urllib.parse.urlencode(input_data)}"
 
         return output

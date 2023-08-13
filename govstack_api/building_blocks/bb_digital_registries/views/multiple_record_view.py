@@ -1,5 +1,4 @@
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -38,15 +37,11 @@ class MultipleRecordAPI(APIView):
             data['page_size'] = page_size
 
         serializer = MultipleRecordsSerializer(data=data)
-
-        if serializer.is_valid():
-            status_code, list_of_records = ListViewController(
-                request, registryname, versionnumber,
-            ).get_records(serializer.data)
-
-            return Response(list_of_records, status=status_code)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code, list_of_records = ListViewController(
+            request, registryname, versionnumber,
+        ).get_records(serializer.data)
+        return Response(list_of_records, status=status_code)
 
     @swagger_auto_schema(
         operation_description='Updates multiple records in the registry database that match the input query.',
@@ -59,12 +54,8 @@ class MultipleRecordAPI(APIView):
         #  most likely should be PATCH. There's a unique ID constraint that contradicts the expected PUT structure.
 
         serializer = CombinedValidatorSerializer(data=request.data)
-        if serializer.is_valid():
-            status_code = update_multiple_records_controller(
-                request, serializer.data, registryname, versionnumber
-            )
-            if status_code == 200:
-                return Response(status=status.HTTP_200_OK)
-            else:
-                return Response(status=status_code)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status, data = update_multiple_records_controller(
+            request, serializer.data, registryname, versionnumber
+        )
+        Response(status=status, data=data)

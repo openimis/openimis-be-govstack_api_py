@@ -19,15 +19,13 @@ class CheckRecordPresenceView(APIView):
     @handle_mutation_exceptions()
     def post(self, request, registryname, versionnumber):
         serializer = QueryValidatorSerializer(data=request.data)
-        if serializer.is_valid():
-            status_code, record_exists = check_record_presence_controller(
-                request, serializer.data, registryname, versionnumber
-            )
-            message = "Object found from database" if record_exists else "Object not found from database"
-            return Response({
-                "answer": {
-                    "status": record_exists,
-                    "message": message}},
-                status=status_code)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        status_code, record_exists = check_record_presence_controller(
+            request, serializer.data, registryname, versionnumber
+        )
+        message = "Object found from database" if record_exists else "Object not found from database"
+        return Response({
+            "answer": {
+                "status": record_exists,
+                "message": message}},
+            status=status_code)
