@@ -29,6 +29,9 @@ def authenticate_decorator(view_func):
 
 
 class InformationMediatorMiddleware:
+    """
+    Used to authenticate request using Information Mediator instead of standard JWT authentication.
+    """
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -87,3 +90,23 @@ class InformationMediatorMiddleware:
                 user = User.objects.get(username=username)
                 request.user = user
         return result
+
+
+class ContentTypeMiddleware:
+    """
+    Digital Registry specification explicitly request content type header to be of `application/json`. Therefore,
+    standard header with extra information about charset is replaced.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Check if the response is from a specific app
+        view_module = request.resolver_match.func.__module__
+
+        if "govstack_api" in view_module and response['Content-Type'] == 'application/json; charset=utf-8':
+            response['Content-Type'] = 'application/json'
+
+        return response

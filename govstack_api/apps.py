@@ -26,5 +26,8 @@ class TestHarnessApiConfig(AppConfig):
         if 'govstack_api.middleware.InformationMediatorMiddleware' not in settings.MIDDLEWARE:
             settings.MIDDLEWARE.append('govstack_api.middleware.InformationMediatorMiddleware')
 
+        if 'govstack_api.middleware.ContentTypeMiddleware' not in settings.MIDDLEWARE:
+            settings.MIDDLEWARE.append('govstack_api.middleware.ContentTypeMiddleware')
+
     def _configure_perms(self, cfg):
         TestHarnessApiConfig.page_size = cfg['default_page_size']
