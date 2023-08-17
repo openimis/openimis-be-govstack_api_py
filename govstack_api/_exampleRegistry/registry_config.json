@@ -1,0 +1,31 @@
+{
+    "registryname": {
+        "111": {
+            "class": "InsureeRegistry",
+            "id_field": "chfId",
+            "fields_mapping": {
+                "ID": "id",
+                "FirstName": "otherNames",
+                "LastName": "lastName",
+                "uuid": "uuid"
+            },
+            "special_fields": ["BirthCertificateID", "PersonalData"],
+            "default_values": {
+                "otherNames": "otherNames: \"undefined\"",
+                "family_id": "familyId: 1",
+                "gender_id": "genderId: \"O\"",
+                "dob": "dob: \"1920-04-02\"",
+                "head": "head: false",
+                "card_issued": "cardIssued: false"
+            },
+            "mutations": {
+                "create": "createInsuree",
+                "delete": "deleteInsurees",
+                "update": "updateInsuree"
+            },
+            "queries": {
+                "get": "insurees"
+            }
+        }
+    }
+}

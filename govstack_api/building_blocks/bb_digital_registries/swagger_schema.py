@@ -82,22 +82,38 @@ exists_response_body = openapi.Response('response description', openapi.Schema(
     required=['answer']
 ))
 
+response_200_body = openapi.Response(
+    description='',
+    schema=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'content': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'field1': openapi.Schema(type=openapi.TYPE_STRING, description='Description of field1'),
+                    'field2': openapi.Schema(type=openapi.TYPE_INTEGER, description='Description of field2')
+                }
+            ),
+        },
+    ),
+)
+
+# Response for status code 404
+response_404_body = openapi.Response(
+    description='Record not found',
+    schema=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'detail': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                enum=['no record found']
+            ),
+        },
+    ),
+)
+
 delete_response = openapi.Response(description='No content')
-# {
-#   "query": {
-#     "content": {
-#       "LastName": "John Helmuta",
-#       "BirthCertificateID": "RR-1234567889"
-#     }
-#   },
-#   "write": {
-#     "content": {
-#       "FirstName": "Smith Car",
-#       "LastName": "John Helmuta",
-#       "BirthCertificateID": "RR-1234567889"
-#     }
-#   }
-# }
+
 create_or_update_response = {
     200: openapi.Response(
         'Successful update or creation of record',
@@ -147,7 +163,6 @@ request_body_schema = openapi.Schema(
 )
 
 update_record_schema = {
-    'method': 'put',
     'operation_description': "Updates one existing record in the registry database.",
     'request_body': request_body_schema,
     'responses': {200: openapi.Response(description='')}
@@ -261,3 +276,11 @@ delete_parameters = [
     versionnumber_parameter,
     id_parameter
 ]
+
+info_mediator_client = openapi.Parameter(
+    'Information-Mediator-Client',
+    openapi.IN_HEADER,
+    description="Format is: INSTANCE/CLASS/MEMBER/SUBSYSTEM",
+    type=openapi.TYPE_STRING,
+    required=True
+)
