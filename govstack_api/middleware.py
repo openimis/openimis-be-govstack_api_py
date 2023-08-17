@@ -81,7 +81,6 @@ class InformationMediatorMiddleware:
         except Exception as e:
             print(f"Exception occurred: {e}")
             return None
-
         if 'data' in result and 'tokenAuth' in result['data'] and 'token' in result['data']['tokenAuth']:
             token = result['data']['tokenAuth']['token']
             if token:
@@ -90,7 +89,6 @@ class InformationMediatorMiddleware:
                 user = User.objects.get(username=username)
                 request.user = user
         return result
-
 
 class ContentTypeMiddleware:
     """
